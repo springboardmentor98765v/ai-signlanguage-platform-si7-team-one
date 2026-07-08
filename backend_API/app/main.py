@@ -1,17 +1,9 @@
 from fastapi import FastAPI
 
-app = FastAPI(
-    title="Sign Language Platform - User & Course API",
-    version="1.0.0"
-)
+from app.routers import auth, courses, health
 
-@app.get("/")
-def root():
-    return {"message": "API is running"}
+app = FastAPI(title="Sign Language Platform API")
 
-@app.get("/health")
-def health():
-    return {
-        "status": "healthy",
-        "service": "Backend API"
-    }
+app.include_router(auth.router)
+app.include_router(courses.router)
+app.include_router(health.router)
