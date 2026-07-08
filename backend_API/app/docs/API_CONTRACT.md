@@ -32,7 +32,7 @@ Creates a new user account.
 
 ```json
 {
-  "name": "Ash;ey",
+  "name": "Ashley",
   "email": "ashley@gmail.com",
   "password": "Password@123",
   "role": "Learner"
