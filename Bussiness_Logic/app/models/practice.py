@@ -15,20 +15,20 @@ for actual DB session calls.
 """
 
 from dataclasses import dataclass, field
+from uuid import UUID
 from datetime import datetime
 from typing import Optional
-
 from app.schemas.practice import SessionStatus
 
 
 @dataclass
 class PracticeSession:
-    session_id: str
-    user_id: str
-    lesson_id: str
-    expected_sign: str
+    session_id: UUID
+    user_id: UUID
+    lesson_id: int
     status: SessionStatus
-    start_time: datetime
-    end_time: Optional[datetime] = None
-    attempt_count: int = 0
-    duration_seconds: Optional[int] = None
+    started_at: datetime
+    ended_at: Optional[datetime] = None
+    # attempt_count and duration_seconds intentionally NOT stored here —
+    # attempt_count will be derived from ai_predictions rows (Day 4+),
+    # duration_seconds is computed on the fly in the service layer.

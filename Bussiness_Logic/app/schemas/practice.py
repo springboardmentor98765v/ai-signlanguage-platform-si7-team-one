@@ -10,10 +10,11 @@ and seeded lessons (Day 5) exist, these should become validated FKs
 (e.g. checked against the User/Lesson tables) rather than free-form strings.
 """
 
+from pydantic import BaseModel
+from uuid import UUID
 from datetime import datetime
 from enum import Enum
 from typing import Optional
-from pydantic import BaseModel, Field
 
 
 class SessionStatus(str, Enum):
@@ -23,26 +24,20 @@ class SessionStatus(str, Enum):
 
 
 class PracticeSessionStartRequest(BaseModel):
-    user_id: str = Field(..., description="ID of the learner starting the session")
-    lesson_id: str = Field(..., description="ID of the lesson being practiced")
-    expected_sign: str = Field(..., description="The letter/sign the learner is attempting")
+    user_id: UUID
+    lesson_id: int          # was string — now matches DB's INT lesson_id
 
 
 class PracticeSessionEndRequest(BaseModel):
-    session_id: str = Field(..., description="ID of the session to end")
-    status: SessionStatus = Field(
-        default=SessionStatus.completed,
-        description="Final status — 'completed' by default, or 'abandoned' if the learner quit early",
-    )
+    session_id: UUID
+    status: SessionStatus = SessionStatus.completed  # completed or abandoned
 
 
 class PracticeSessionOut(BaseModel):
-    session_id: str
-    user_id: str
-    lesson_id: str
-    expected_sign: str
+    session_id: UUID
+    user_id: UUID
+    lesson_id: int
     status: SessionStatus
-    start_time: datetime
-    end_time: Optional[datetime] = None
-    attempt_count: int
-    duration_seconds: Optional[int] = None
+    started_at: datetime          # renamed from start_time
+    ended_at: Optional[datetime] = None   # renamed from end_time
+    duration_seconds: Optional[int] = None  # computed, never stored
