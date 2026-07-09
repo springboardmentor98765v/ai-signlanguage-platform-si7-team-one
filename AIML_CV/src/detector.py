@@ -20,12 +20,13 @@ class HandDetector:
         )
 
         self.drawer = mp.solutions.drawing_utils
-
     def detect(self, frame):
 
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         results = self.hands.process(rgb)
+
+        landmark_list = None
 
         if results.multi_hand_landmarks:
 
@@ -37,4 +38,6 @@ class HandDetector:
                     self.mp_hands.HAND_CONNECTIONS
                 )
 
-        return frame
+                landmark_list = hand_landmarks
+
+        return frame, landmark_list
