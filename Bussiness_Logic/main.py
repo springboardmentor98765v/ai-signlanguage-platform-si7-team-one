@@ -12,11 +12,13 @@ Run locally with:
 """
 
 from fastapi import FastAPI
-from app.routers import practice
+from app.routers import practice, assessment
 
 app = FastAPI(title="Practice Service (dev)")
 
 app.include_router(practice.router)
+app.include_router(assessment.router)
+
 
 
 @app.get("/health")
