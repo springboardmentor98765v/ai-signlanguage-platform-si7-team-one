@@ -36,6 +36,8 @@ class InMemoryPracticeSessionStore:
         session.ended_at = datetime.now(timezone.utc)
         session.status = status
         return session
+    def get_sessions_by_user(self, user_id) -> list:
+        return [s for s in self._sessions.values() if s.user_id == user_id]
 
     def get_session(self, session_id: UUID) -> Optional[PracticeSession]:
         return self._sessions.get(session_id)

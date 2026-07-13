@@ -53,6 +53,12 @@ class InMemoryAssessmentStore:
         if predicted_sign == expected_sign:
             assessment.correct_predictions += 1
         assessment.score_sum += attempt_score
+        
+        stats = assessment.sign_stats.setdefault(expected_sign, {"correct": 0, "total": 0})
+        stats["total"] += 1
+        if predicted_sign == expected_sign:
+            stats["correct"] += 1
+
         return assessment
 
     def complete(self, session_id: UUID) -> Optional[Assessment]:
