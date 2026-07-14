@@ -78,6 +78,7 @@ def test_create_lesson_allowed_for_admin(test_client):
     data = response.json()
     assert data["title"] == "Test Lesson Admin"
 
+
     # cleanup
     lesson_id = data["lesson_id"]
     test_client.delete(f"/courses/lessons/{lesson_id}", headers={"Authorization": f"Bearer {admin_token}"})
