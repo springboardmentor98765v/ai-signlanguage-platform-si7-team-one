@@ -41,3 +41,10 @@ class PracticeSessionOut(BaseModel):
     started_at: datetime          # renamed from start_time
     ended_at: Optional[datetime] = None   # renamed from end_time
     duration_seconds: Optional[int] = None  # computed, never stored
+
+class AttemptResultOut(BaseModel):
+    predicted_sign: Optional[str] = None
+    confidence: Optional[float] = None
+    success: bool
+    message: Optional[str] = None
+    assessment: Optional[dict] = None  # current session assessment, if success
