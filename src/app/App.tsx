@@ -381,9 +381,58 @@ function LoginScreen({
       <div className="hidden lg:flex w-[45%] bg-surface flex-col justify-between p-12 relative overflow-hidden border-r border-border">
         <div className="absolute -top-20 -right-20 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
         <div className="absolute bottom-10 left-1/4 w-48 h-48 bg-secondary/5 rounded-full blur-2xl" />
-        <div className="absolute top-32 right-12 opacity-25">
-          <HandOverlay w={240} h={290} animated />
-        </div>
+        {/* Doodle cluster — free space */}
+        <svg className="absolute top-28 right-10 w-64 h-72 text-foreground/[0.18] pointer-events-none" viewBox="0 0 256 280" fill="none">
+          {/* open book */}
+          <path d="M80 100 Q128 88 176 100" stroke="currentColor" strokeWidth="1.2" />
+          <path d="M80 100 L80 124 Q128 112 176 124 L176 100" stroke="currentColor" strokeWidth="1.2" />
+          <path d="M128 96 L128 120" stroke="currentColor" strokeWidth="0.9" />
+          <path d="M92 108 L120 105" stroke="currentColor" strokeWidth="0.7" />
+          <path d="M136 105 L164 108" stroke="currentColor" strokeWidth="0.7" />
+          <path d="M92 114 L120 111" stroke="currentColor" strokeWidth="0.7" />
+          <path d="M136 111 L164 114" stroke="currentColor" strokeWidth="0.7" />
+
+          {/* person left — sitting, leaning in */}
+          <circle cx="42" cy="54" r="9" stroke="currentColor" strokeWidth="1.1" />
+          <path d="M42 63 L42 100" stroke="currentColor" strokeWidth="1.1" />
+          <path d="M42 72 L28 86" stroke="currentColor" strokeWidth="1.1" />
+          <path d="M42 72 L56 84" stroke="currentColor" strokeWidth="1.1" />
+          <path d="M42 100 L32 124" stroke="currentColor" strokeWidth="1.1" />
+          <path d="M42 100 L52 124" stroke="currentColor" strokeWidth="1.1" />
+
+          {/* person right — sitting, relaxed */}
+          <circle cx="214" cy="54" r="9" stroke="currentColor" strokeWidth="1.1" />
+          <path d="M214 63 L214 100" stroke="currentColor" strokeWidth="1.1" />
+          <path d="M214 72 L200 84" stroke="currentColor" strokeWidth="1.1" />
+          <path d="M214 72 L228 86" stroke="currentColor" strokeWidth="1.1" />
+          <path d="M214 100 L204 124" stroke="currentColor" strokeWidth="1.1" />
+          <path d="M214 100 L224 124" stroke="currentColor" strokeWidth="1.1" />
+
+          {/* speech bubble */}
+          <path d="M60 32 Q60 18 80 18 L176 18 Q196 18 196 32 Q196 46 176 46 L88 46 L76 54 L80 46 Q60 46 60 32 Z" stroke="currentColor" strokeWidth="1.1" />
+          <path d="M76 26 L180 26" stroke="currentColor" strokeWidth="0.7" />
+          <path d="M76 32 L148 32" stroke="currentColor" strokeWidth="0.7" />
+          <path d="M76 38 L164 38" stroke="currentColor" strokeWidth="0.7" />
+
+          {/* coffee mug */}
+          <path d="M14 148 L14 168 Q14 174 20 174 L34 174 Q40 174 40 168 L40 148" stroke="currentColor" strokeWidth="1.1" />
+          <path d="M40 154 Q48 154 48 160 Q48 166 40 166" stroke="currentColor" strokeWidth="0.9" />
+
+          {/* notebook */}
+          <rect x="200" y="148" width="36" height="26" rx="2" stroke="currentColor" strokeWidth="1" />
+          <path d="M208 154 L228 154" stroke="currentColor" strokeWidth="0.6" />
+          <path d="M208 159 L224 159" stroke="currentColor" strokeWidth="0.6" />
+          <path d="M208 164 L220 164" stroke="currentColor" strokeWidth="0.6" />
+
+          {/* ground line */}
+          <path d="M12 128 L244 128" stroke="currentColor" strokeWidth="0.5" opacity="0.5" />
+
+          {/* decorative dots */}
+          <circle cx="12" cy="24" r="1.5" fill="currentColor" opacity="0.2" />
+          <circle cx="244" cy="80" r="1.5" fill="currentColor" opacity="0.2" />
+          <circle cx="8" cy="200" r="1.5" fill="currentColor" opacity="0.2" />
+          <circle cx="248" cy="200" r="1.5" fill="currentColor" opacity="0.2" />
+        </svg>
         <div className="relative">
           <div className="flex items-center gap-2.5 mb-12">
             <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center text-base">✋</div>
