@@ -52,62 +52,55 @@ const adminGrowth = [
   { month: "Jun", users: 2740, comps: 312 }, { month: "Jul", users: 2847, comps: 341 },
 ];
 
-function LearningDoodle({ w = 240, h = 280 }: { w?: number; h?: number }) {
+// ── Hand landmark positions (MediaPipe-style) ─────────────────────────────
+const LANDMARKS: [number, number][] = [
+  [0.50, 0.88], // wrist
+  [0.38, 0.76], [0.28, 0.67], [0.22, 0.58], [0.18, 0.50], // thumb
+  [0.42, 0.62], [0.38, 0.47], [0.36, 0.36], [0.35, 0.26], // index
+  [0.50, 0.60], [0.50, 0.44], [0.50, 0.33], [0.50, 0.23], // middle
+  [0.58, 0.62], [0.61, 0.46], [0.63, 0.36], [0.64, 0.26], // ring
+  [0.66, 0.67], [0.71, 0.54], [0.74, 0.45], [0.76, 0.37], // pinky
+];
+const CONNECTIONS: [number, number][] = [
+  [0,1],[1,2],[2,3],[3,4],
+  [0,5],[5,6],[6,7],[7,8],
+  [0,9],[9,10],[10,11],[11,12],
+  [0,13],[13,14],[14,15],[15,16],
+  [0,17],[17,18],[18,19],[19,20],
+  [5,9],[9,13],[13,17],
+];
+
+function HandOverlay({
+  w = 300, h = 380, animated = true,
+}: {
+  w?: number; h?: number; animated?: boolean;
+}) {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!animated) return;
+    const id = setInterval(() => setTick(t => t + 1), 60);
+    return () => clearInterval(id);
+  }, [animated]);
+  const j = (v: number, i: number) =>
+    animated ? v + Math.sin((tick * 0.07 + i * 0.8)) * 0.007 : v;
   return (
-    <svg width={w} height={h} viewBox="0 0 240 280" fill="none" className="pointer-events-none">
-      {/* Person left — sitting, writing */}
-      <circle cx="72" cy="78" r="11" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M72 89 L72 130" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M72 100 L52 118" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M72 100 L92 114" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M72 130 L56 158" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M72 130 L88 158" stroke="currentColor" strokeWidth="1.2" />
-
-      {/* Person right — sitting, listening */}
-      <circle cx="168" cy="78" r="11" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M168 89 L168 130" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M168 100 L148 116" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M168 100 L188 112" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M168 130 L152 158" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M168 130 L184 158" stroke="currentColor" strokeWidth="1.2" />
-
-      {/* Open book between them */}
-      <path d="M96 110 Q120 102 144 110" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M96 110 L96 128 Q120 120 144 128 L144 110" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M120 106 L120 124" stroke="currentColor" strokeWidth="1" />
-      <path d="M102 116 L116 114" stroke="currentColor" strokeWidth="0.8" />
-      <path d="M124 114 L138 116" stroke="currentColor" strokeWidth="0.8" />
-      <path d="M102 121 L116 119" stroke="currentColor" strokeWidth="0.8" />
-      <path d="M124 119 L138 121" stroke="currentColor" strokeWidth="0.8" />
-
-      {/* Coffee mug */}
-      <path d="M28 144 L28 160 Q28 166 34 166 L44 166 Q50 166 50 160 L50 144" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M50 148 Q58 148 58 154 Q58 160 50 160" stroke="currentColor" strokeWidth="1" />
-
-      {/* Steam wisps */}
-      <path d="M34 140 Q32 134 36 130" stroke="currentColor" strokeWidth="0.8" opacity="0.5" />
-      <path d="M40 138 Q38 130 42 126" stroke="currentColor" strokeWidth="0.8" opacity="0.5" />
-
-      {/* Speech bubble */}
-      <path d="M88 58 Q88 42 108 42 L156 42 Q176 42 176 58 Q176 74 156 74 L110 74 L100 82 L104 74 Q88 74 88 58 Z" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M104 50 L160 50" stroke="currentColor" strokeWidth="0.8" />
-      <path d="M104 56 L144 56" stroke="currentColor" strokeWidth="0.8" />
-      <path d="M104 62 L152 62" stroke="currentColor" strokeWidth="0.8" />
-
-      {/* Notebook / pencil on desk */}
-      <rect x="162" y="142" width="32" height="24" rx="2" stroke="currentColor" strokeWidth="1" />
-      <path d="M168 148 L186 148" stroke="currentColor" strokeWidth="0.7" />
-      <path d="M168 153 L182 153" stroke="currentColor" strokeWidth="0.7" />
-      <path d="M168 158 L178 158" stroke="currentColor" strokeWidth="0.7" />
-
-      {/* Small decorative dots */}
-      <circle cx="20" cy="48" r="1.5" fill="currentColor" opacity="0.15" />
-      <circle cx="220" cy="96" r="1.5" fill="currentColor" opacity="0.15" />
-      <circle cx="16" cy="200" r="1.5" fill="currentColor" opacity="0.15" />
-      <circle cx="224" cy="200" r="1.5" fill="currentColor" opacity="0.15" />
-
-      {/* Ground line */}
-      <path d="M20 166 L220 166" stroke="currentColor" strokeWidth="0.6" opacity="0.3" />
+    <svg width={w} height={h} className="pointer-events-none">
+      {CONNECTIONS.map(([a, b], i) => (
+        <line
+          key={i}
+          x1={j(LANDMARKS[a][0], a) * w} y1={j(LANDMARKS[a][1], a) * h}
+          x2={j(LANDMARKS[b][0], b) * w} y2={j(LANDMARKS[b][1], b) * h}
+          stroke="var(--hand-stroke)" strokeWidth={1.5}
+        />
+      ))}
+      {LANDMARKS.map(([x, y], i) => (
+        <circle
+          key={i}
+          cx={j(x, i) * w} cy={j(y, i) * h}
+          r={i === 0 ? 5 : i % 4 === 0 ? 4.5 : 3}
+          fill={i % 4 === 0 ? "var(--hand-joint)" : "var(--hand-bone)"}
+        />
+      ))}
     </svg>
   );
 }
@@ -388,8 +381,8 @@ function LoginScreen({
       <div className="hidden lg:flex w-[45%] bg-surface flex-col justify-between p-12 relative overflow-hidden border-r border-border">
         <div className="absolute -top-20 -right-20 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
         <div className="absolute bottom-10 left-1/4 w-48 h-48 bg-secondary/5 rounded-full blur-2xl" />
-        <div className="absolute top-28 right-8 text-foreground/20">
-          <LearningDoodle w={260} h={300} />
+        <div className="absolute top-32 right-12 opacity-25">
+          <HandOverlay w={240} h={290} animated />
         </div>
         <div className="relative">
           <div className="flex items-center gap-2.5 mb-12">
