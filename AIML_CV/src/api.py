@@ -5,6 +5,10 @@ import numpy as np
 import joblib
 import os
 
+import time
+from .feedback import generate_feedback
+from .quality import analyze_hand_quality
+
 # ==================================================
 # FastAPI App
 # ==================================================
@@ -68,6 +72,7 @@ def extract_features(image):
         return None
 
     hand = results.multi_hand_landmarks[0]
+    quality = analyze_hand_quality(hand)
 
     # Draw landmarks for debugging
     debug = image.copy()
@@ -88,7 +93,7 @@ def extract_features(image):
             lm.z
         ])
 
-    return features
+    return features, quality
 
 # ==================================================
 # Prediction
@@ -105,13 +110,14 @@ def predict(features):
     label = label_encoder.inverse_transform([prediction])[0]
 
     return label, confidence
-
 # ==================================================
 # Predict API
 # ==================================================
 
 @app.post("/predict")
 async def predict_sign(file: UploadFile = File(...)):
+
+    start_time = time.time()
 
     image_bytes = await file.read()
 
@@ -128,22 +134,31 @@ async def predict_sign(file: UploadFile = File(...)):
     # Save uploaded image for debugging
     cv2.imwrite("uploaded_image.jpg", image)
 
-    # NOTE:
-    # Don't resize while debugging.
-    # image = cv2.resize(image, (640,480))
+    result = extract_features(image)
 
-    features = extract_features(image)
-
-    if features is None:
+    if result is None:
         return {
             "success": False,
             "message": "No hand detected"
         }
+    features, quality = result
 
     label, confidence = predict(features)
 
+    feedback = generate_feedback(confidence)
+
+    processing_time = round((time.time() - start_time) * 1000, 2)
+
     return {
-        "success": True,
-        "prediction": label,
-        "confidence": round(confidence, 4)
+    "success": True,
+    "prediction": label,
+    "confidence": round(confidence, 4),
+    "confidence_level": feedback["confidence_level"],
+    "status": feedback["status"],
+    "feedback": feedback["feedback"],
+    "processing_time_ms": processing_time,
+    "hand_position": quality["hand_position"],
+    "hand_distance": quality["hand_distance"],
+    "gesture_quality": quality["gesture_quality"],
+    "suggestion": quality["suggestion"]
     }
