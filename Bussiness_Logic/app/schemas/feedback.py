@@ -25,9 +25,11 @@ class FeedbackItem(BaseModel):
 
 class FeedbackGenerateRequest(BaseModel):
     session_id: UUID
+    expected_sign: Optional[str] = None
 
 
 class FeedbackOut(BaseModel):
     session_id: UUID
     feedback: List[FeedbackItem]
     generated_at: datetime
+

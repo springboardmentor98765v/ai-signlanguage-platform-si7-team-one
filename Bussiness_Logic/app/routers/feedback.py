@@ -11,9 +11,17 @@ router = APIRouter(prefix="/feedback", tags=["feedback"])
 def generate_feedback(payload: FeedbackGenerateRequest):
     assessment = assessment_store.get(payload.session_id)
     if assessment is None:
-        raise HTTPException(status_code=404, detail="No assessment found for this session — record an attempt first")
+        raise HTTPException(
+            status_code=404,
+            detail="No assessment found for this session — record an attempt first"
+        )
     assessment_out = assessment_store.to_out(assessment)
-    feedback = feedback_store.generate(payload.session_id, assessment_out)
+    feedback = feedback_store.generate(
+        session_id=payload.session_id,
+        assessment=assessment_out,
+        expected_sign=payload.expected_sign,
+        last_breakdown=assessment.last_breakdown,  # from Day 2's scoring breakdown
+    )
     return feedback_store.to_out(feedback)
 
 

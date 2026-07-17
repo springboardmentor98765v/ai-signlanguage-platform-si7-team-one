@@ -45,7 +45,7 @@ def get_practice_session(session_id: str):
 async def submit_attempt(
     session_id: str,
     expected_sign: str = Form(...),
-    attempt_started_at: Optional[datetime] = Form(
+    attempt_started_at: Optional[str] = Form(
         None,
         description="ISO 8601 timestamp (client clock) marking when the user began holding the pose.",
     ),
@@ -61,11 +61,15 @@ async def submit_attempt(
 
     hold_seconds: Optional[float] = None
     if attempt_started_at is not None:
-        started = attempt_started_at
-        if started.tzinfo is None:
-            started = started.replace(tzinfo=timezone.utc)
-        delta = (submitted_at - started).total_seconds()
-        hold_seconds = delta if 0 <= delta <= 60 else None
+
+        try:
+            started = datetime.fromisoformat(attempt_started_at)
+            if started.tzinfo is None:
+                started = started.replace(tzinfo=timezone.utc)
+            delta = (submitted_at - started).total_seconds()
+            hold_seconds = delta if 0 <= delta <= 60 else None
+        except ValueError:
+            hold_seconds = None
 
     image_bytes = await file.read()
     result = get_prediction(image_bytes)
