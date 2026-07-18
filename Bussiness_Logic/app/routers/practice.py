@@ -61,7 +61,6 @@ async def submit_attempt(
 
     hold_seconds: Optional[float] = None
     if attempt_started_at is not None:
-
         try:
             started = datetime.fromisoformat(attempt_started_at)
             if started.tzinfo is None:
