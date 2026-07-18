@@ -1,26 +1,13 @@
-"""
-Local dev entrypoint — FOR STANDALONE TESTING ONLY.
-
-Once Intern 2's shared FastAPI project skeleton (Day 2 deliverable) is
-available, `app.routers.practice.router` should be included there instead:
-
-    from app.routers import practice
-    app.include_router(practice.router)
-
-Run locally with:
-    uvicorn main:app --reload
-"""
-
 from fastapi import FastAPI
-from app.routers import practice, assessment, feedback, analytics
+from app.routers import practice, assessment, feedback, analytics, recommendation
 
 app = FastAPI(title="Practice Service (dev)")
 
 app.include_router(practice.router)
 app.include_router(assessment.router)
-app.include_router(analytics.router)    
 app.include_router(feedback.router)
-
+app.include_router(analytics.router)
+app.include_router(recommendation.router)
 
 
 @app.get("/health")
