@@ -20,3 +20,6 @@ class CertificateOut(BaseModel):
     total_sessions: int
     signs_practiced: int
     certificate_id: str         # unique ID for the certificate
+
+class CertificateGenerateRequest(BaseModel):
+    learner_name: str
