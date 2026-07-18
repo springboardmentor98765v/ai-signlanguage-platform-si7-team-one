@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import practice, assessment, feedback, analytics, recommendation
+from app.routers import practice, assessment, feedback, analytics, recommendation, certificate
 
 app = FastAPI(title="Practice Service (dev)")
 
@@ -8,6 +8,8 @@ app.include_router(assessment.router)
 app.include_router(feedback.router)
 app.include_router(analytics.router)
 app.include_router(recommendation.router)
+app.include_router(certificate.router)
+
 
 
 @app.get("/health")
