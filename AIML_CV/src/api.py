@@ -9,7 +9,7 @@ import time
 from .feedback import generate_feedback
 from .quality import analyze_hand_quality
 from .history import add_prediction, get_history, clear_history
-
+from .analytics import get_analytics
 # ==================================================
 # FastAPI App
 # ==================================================
@@ -199,3 +199,7 @@ def delete_history():
     return {
         "message": "Prediction history cleared successfully."
     }
+
+@app.get("/analytics")
+def analytics():
+    return get_analytics()
