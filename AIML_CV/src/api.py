@@ -8,6 +8,7 @@ import os
 import time
 from .feedback import generate_feedback
 from .quality import analyze_hand_quality
+from .history import add_prediction, get_history, clear_history
 
 # ==================================================
 # FastAPI App
@@ -149,16 +150,52 @@ async def predict_sign(file: UploadFile = File(...)):
 
     processing_time = round((time.time() - start_time) * 1000, 2)
 
-    return {
-    "success": True,
+    record = {
     "prediction": label,
     "confidence": round(confidence, 4),
     "confidence_level": feedback["confidence_level"],
     "status": feedback["status"],
-    "feedback": feedback["feedback"],
-    "processing_time_ms": processing_time,
-    "hand_position": quality["hand_position"],
-    "hand_distance": quality["hand_distance"],
     "gesture_quality": quality["gesture_quality"],
-    "suggestion": quality["suggestion"]
+    "processing_time_ms": processing_time
+    }
+
+    add_prediction(record)
+
+
+    return {
+        "success": True,
+        "prediction": label,
+        "confidence": round(confidence, 4),
+        "confidence_level": feedback["confidence_level"],
+        "status": feedback["status"],
+        "feedback": feedback["feedback"],
+        "processing_time_ms": processing_time,
+        "hand_position": quality["hand_position"],
+        "hand_distance": quality["hand_distance"],
+        "gesture_quality": quality["gesture_quality"],
+        "suggestion": quality["suggestion"]
+    }
+
+
+# ==================================================
+# Prediction History API
+# ==================================================
+
+@app.get("/history")
+def history():
+    return {
+        "total_predictions": len(get_history()),
+        "history": get_history()
+    }
+
+
+# ==================================================
+# Clear Prediction History API
+# ==================================================
+
+@app.delete("/history")
+def delete_history():
+    clear_history()
+    return {
+        "message": "Prediction history cleared successfully."
     }
