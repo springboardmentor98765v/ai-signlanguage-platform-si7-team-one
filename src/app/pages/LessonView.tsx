@@ -18,12 +18,6 @@ export default function LessonView({ go }: { go: (s: Screen) => void }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  // Contract only gives us { id, course_id, lesson_name } — no video,
-  // key points, or per-sign breakdown yet, so only the title is real;
-  // everything else below stays illustrative mock content until Intern 2's
-  // /lessons/{id} contract grows. No lesson id is passed through the URL
-  // yet either (route is static /courses/lesson) — using "1" as a
-  // placeholder until routing carries a real lessonId param.
   useEffect(() => {
     setLoading(true);
     setError(false);
@@ -55,16 +49,16 @@ export default function LessonView({ go }: { go: (s: Screen) => void }) {
             <button
               key={s.id} onClick={() => setActive(s.id)}
               className={`w-full flex items-center gap-2.5 p-2.5 rounded-lg text-left transition-all ${
-                active === s.id ? "bg-cyan-950/40 border border-cyan-900/40" : "hover:bg-[#162035]"
+                active === s.id ? "bg-primary/10 border border-primary/30" : "hover:bg-[#162035]"
               }`}
             >
               <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                s.done ? "bg-emerald-500" : active === s.id ? "border-2 border-cyan-500" : "border-2 border-[#1a2844]"
+                s.done ? "bg-emerald-500" : active === s.id ? "border-2 border-primary" : "border-2 border-[#1a2844]"
               }`}>
                 {s.done && <Check size={9} className="text-black" />}
-                {!s.done && active === s.id && <div className="w-1.5 h-1.5 rounded-full bg-cyan-500" />}
+                {!s.done && active === s.id && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
               </div>
-              <span className={`text-xs font-medium ${active === s.id ? "text-cyan-400" : s.done ? "text-muted-foreground" : "text-foreground"}`}>
+              <span className={`text-xs font-medium ${active === s.id ? "text-primary" : s.done ? "text-muted-foreground" : "text-foreground"}`}>
                 {s.title}
               </span>
             </button>
@@ -80,15 +74,15 @@ export default function LessonView({ go }: { go: (s: Screen) => void }) {
           </div>
           <h2 className="text-2xl font-bold text-foreground mb-5">
             {loading
-              ? <span className="inline-block h-7 w-64 bg-[#0e1a30] rounded animate-pulse" />
+              ? <span className="inline-block h-7 w-64 bg-surface rounded animate-pulse" />
               : error
               ? <span className="text-rose-400 text-base">Couldn't load lesson title</span>
               : lessonTitle}
           </h2>
 
           <div className="aspect-video bg-[#0e1a30] rounded-xl mb-6 flex items-center justify-center relative overflow-hidden border border-border">
-            <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/10 to-violet-900/10" />
-            <button className="w-12 h-12 bg-cyan-500 hover:bg-cyan-400 rounded-full flex items-center justify-center transition-colors relative z-10">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-violet-900/10" />
+            <button className="w-12 h-12 bg-primary hover:bg-primary-active rounded-full flex items-center justify-center transition-colors relative z-10">
               <Play size={18} className="text-black ml-0.5" />
             </button>
             <div className="absolute bottom-3 left-4 text-xs text-muted-foreground">
@@ -121,7 +115,7 @@ export default function LessonView({ go }: { go: (s: Screen) => void }) {
               "DISGUST involves a twisting motion near the mouth or nose area",
             ].map(p => (
               <li key={p} className="flex items-start gap-2 text-sm text-muted-foreground">
-                <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 mt-1.5 flex-shrink-0" />
+                <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
                 {p}
               </li>
             ))}
@@ -134,7 +128,7 @@ export default function LessonView({ go }: { go: (s: Screen) => void }) {
             </button>
             <button
               onClick={() => go("camera-permission")}
-              className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-black font-bold px-5 py-2.5 rounded-xl transition-colors text-sm"
+              className="flex items-center gap-2 bg-primary hover:bg-primary-active text-black font-bold px-5 py-2.5 rounded-xl transition-colors text-sm"
             >
               <Camera size={15} />
               Start Practice

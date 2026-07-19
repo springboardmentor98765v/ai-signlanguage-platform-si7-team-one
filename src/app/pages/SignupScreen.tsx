@@ -43,7 +43,7 @@ export default function SignupScreen({
     <div className="min-h-screen bg-background flex items-center justify-center p-8">
       <div className="w-full max-w-lg">
         <div className="flex items-center gap-2.5 mb-8">
-          <div className="w-9 h-9 bg-cyan-500 rounded-xl flex items-center justify-center text-base">✋</div>
+          <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center text-base">✋</div>
           <span className="font-bold text-lg text-foreground">SignPath AI</span>
         </div>
         <h2 className="text-2xl font-bold text-foreground mb-1">Create your account</h2>
@@ -55,11 +55,11 @@ export default function SignupScreen({
               key={v} onClick={() => setRole(v)}
               className={`p-4 rounded-xl border text-left transition-all ${
                 role === v
-                  ? "border-cyan-500/60 bg-cyan-950/30"
-                  : "border-border bg-[#0e1a30] hover:border-cyan-500/20"
+                  ? "border-primary/60 bg-primary/10"
+                  : "border-border bg-[#0e1a30] hover:border-primary/20"
               }`}
             >
-              <Icon size={17} className={role === v ? "text-cyan-400 mb-2" : "text-muted-foreground mb-2"} />
+              <Icon size={17} className={role === v ? "text-primary mb-2" : "text-muted-foreground mb-2"} />
               <div className="text-sm font-semibold text-foreground">{label}</div>
               <div className="text-xs text-muted-foreground mt-0.5">{desc}</div>
             </button>
@@ -71,7 +71,7 @@ export default function SignupScreen({
             <label className="text-xs font-semibold text-foreground mb-1.5 block">Full name</label>
             <input
               value={name} onChange={e => setName(e.target.value)}
-              className="w-full bg-[#0e1a30] border border-border rounded-lg px-4 py-2.5 text-foreground text-sm focus:outline-none focus:border-cyan-500/50"
+              className="w-full bg-[#0e1a30] border border-border rounded-lg px-4 py-2.5 text-foreground text-sm focus:outline-none focus:border-primary/50"
               placeholder="Maya Chen"
             />
           </div>
@@ -79,7 +79,7 @@ export default function SignupScreen({
             <label className="text-xs font-semibold text-foreground mb-1.5 block">Email</label>
             <input
               value={email} onChange={e => setEmail(e.target.value)}
-              className="w-full bg-[#0e1a30] border border-border rounded-lg px-4 py-2.5 text-foreground text-sm focus:outline-none focus:border-cyan-500/50"
+              className="w-full bg-[#0e1a30] border border-border rounded-lg px-4 py-2.5 text-foreground text-sm focus:outline-none focus:border-primary/50"
               placeholder="you@example.com"
             />
           </div>
@@ -88,7 +88,7 @@ export default function SignupScreen({
             <input
               type="password"
               value={password} onChange={e => setPassword(e.target.value)}
-              className="w-full bg-[#0e1a30] border border-border rounded-lg px-4 py-2.5 text-foreground text-sm focus:outline-none focus:border-cyan-500/50"
+              className="w-full bg-[#0e1a30] border border-border rounded-lg px-4 py-2.5 text-foreground text-sm focus:outline-none focus:border-primary/50"
               placeholder="Min. 8 characters"
             />
           </div>
@@ -103,13 +103,13 @@ export default function SignupScreen({
         <button
           onClick={handleSignup}
           disabled={loading}
-          className="w-full bg-cyan-500 hover:bg-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed text-black font-bold py-3 rounded-xl transition-colors mb-4 text-sm"
+          className="w-full bg-primary hover:bg-primary-active disabled:opacity-60 disabled:cursor-not-allowed text-black font-bold py-3 rounded-xl transition-colors mb-4 text-sm"
         >
           {loading ? "Creating account..." : "Create account"}
         </button>
         <p className="text-center text-xs text-muted-foreground">
           Already have an account?{" "}
-          <button onClick={goLogin} className="text-cyan-400 hover:text-cyan-300 font-semibold">Sign in</button>
+          <button onClick={goLogin} className="text-primary hover:text-primary-active font-semibold">Sign in</button>
         </p>
       </div>
     </div>

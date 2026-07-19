@@ -34,7 +34,7 @@ const delay = (v) => new Promise((r) => setTimeout(() => r(v), MOCK_DELAY));
 // ── Auth ──────────────────────────────────────────────────────────────────
 export async function registerUser({ name, email, password, role }) {
   if (USE_MOCKS) {
-    return delay({ id: "mock-user-1", name, email, role });
+    return delay({ message: "User registered successfully" });
   }
   return request("/auth/register", {
     method: "POST",
@@ -44,18 +44,22 @@ export async function registerUser({ name, email, password, role }) {
 
 export async function loginUser({ email, password }) {
   if (USE_MOCKS) {
-    const data = { token: "mock-jwt-token", role: "learner", email };
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("role", data.role);
-    return delay(data);
+    const data = { access_token: "mock-jwt-token", token_type: "Bearer" };
+    localStorage.setItem("token", data.access_token);
+    const profile = await getProfile();
+    localStorage.setItem("role", profile.role);
+    return { ...data, role: profile.role };
   }
+  // Real contract only returns { access_token, token_type } — no role.
+  // Role has to come from a follow-up /auth/profile call.
   const data = await request("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
-  localStorage.setItem("token", data.token);
-  localStorage.setItem("role", data.role);
-  return data;
+  localStorage.setItem("token", data.access_token);
+  const profile = await getProfile();
+  localStorage.setItem("role", profile.role);
+  return { ...data, role: profile.role };
 }
 
 export async function getProfile() {
@@ -78,17 +82,29 @@ export function logoutUser() {
 export async function getCourses() {
   if (USE_MOCKS) {
     return delay([
-      { id: "1", title: "Alphabet Basics", level: "Beginner", lessons: 26 },
-      { id: "2", title: "Numbers 1-20", level: "Beginner", lessons: 20 },
-      { id: "3", title: "Everyday Phrases", level: "Intermediate", lessons: 15 },
+      { id: "1", title: "ASL Fundamentals", difficulty: "Beginner", lessons: 24,
+        desc: "Core signs, alphabet, and basic phrases.", hrs: "6 hrs", pct: 100, cat: "ASL" },
+      { id: "2", title: "ASL Intermediate", difficulty: "Intermediate", lessons: 32,
+        desc: "Emotions, questions, and sentence structure.", hrs: "9 hrs", pct: 68, cat: "ASL" },
+      { id: "3", title: "ASL Advanced Conversation", difficulty: "Advanced", lessons: 28,
+        desc: "Classifiers, complex grammar, and fluent ASL.", hrs: "12 hrs", pct: 0, cat: "ASL" },
+      { id: "4", title: "BSL Basics", difficulty: "Beginner", lessons: 20,
+        desc: "Introduction to British Sign Language.", hrs: "5 hrs", pct: 0, cat: "BSL" },
+      { id: "5", title: "Medical Sign Language", difficulty: "Intermediate", lessons: 18,
+        desc: "Healthcare vocabulary for clinical environments.", hrs: "4 hrs", pct: 12, cat: "Specialized" },
+      { id: "6", title: "Numbers & Math Signs", difficulty: "Beginner", lessons: 10,
+        desc: "Counting, arithmetic, and quantities.", hrs: "2 hrs", pct: 45, cat: "ASL" },
     ]);
   }
+  // Real contract returns only { id, title, difficulty } per course — no
+  // desc/hrs/pct/cat/lessons yet. CourseCatalog's toUiCourse() already
+  // fills safe defaults for whatever fields are missing.
   return request("/courses");
 }
 
 export async function getCourseById(id) {
   if (USE_MOCKS) {
-    return delay({ id, title: "Alphabet Basics", level: "Beginner", lessons: 26 });
+    return delay({ id, title: "Alphabet Basics", difficulty: "Beginner", description: "Learn the alphabet in sign language." });
   }
   return request(`/courses/${id}`);
 }
@@ -96,8 +112,8 @@ export async function getCourseById(id) {
 export async function getLessons() {
   if (USE_MOCKS) {
     return delay([
-      { id: "1", title: "Letter A", courseId: "1" },
-      { id: "2", title: "Letter B", courseId: "1" },
+      { id: "1", course_id: "1", lesson_name: "Letter A" },
+      { id: "2", course_id: "1", lesson_name: "Letter B" },
     ]);
   }
   return request("/lessons");
@@ -105,7 +121,7 @@ export async function getLessons() {
 
 export async function getLessonById(id) {
   if (USE_MOCKS) {
-    return delay({ id, title: "Letter A", courseId: "1" });
+    return delay({ id, course_id: "1", lesson_name: "Letter A" });
   }
   return request(`/lessons/${id}`);
 }
