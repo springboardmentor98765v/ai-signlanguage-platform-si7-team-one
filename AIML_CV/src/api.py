@@ -10,6 +10,9 @@ from .feedback import generate_feedback
 from .quality import analyze_hand_quality
 from .history import add_prediction, get_history, clear_history
 from .analytics import get_analytics
+from .dashboard import get_dashboard
+from fastapi.middleware.cors import CORSMiddleware
+
 # ==================================================
 # FastAPI App
 # ==================================================
@@ -203,3 +206,12 @@ def delete_history():
 @app.get("/analytics")
 def analytics():
     return get_analytics()
+
+# ==================================================
+# Dashboard API
+# ==================================================
+
+@app.get("/dashboard")
+def dashboard():
+
+    return get_dashboard()
