@@ -10,23 +10,31 @@ import {
 import type { Screen } from "../lib/types";
 import { HandOverlay } from "../components/shared/HandOverlay";
 import { FlowStepper } from "../components/shared/FlowStepper";
-import { predictSign } from "../services/aiApi";
+import { useAuth } from "../context/AuthContext";
+import { startPracticeSession, submitPracticeAttempt } from "../services/businessApi";
 
-type PredictResult = {
+type AttemptResult = {
   success: boolean;
-  prediction?: string;
+  predicted_sign?: string;
   confidence?: number;
-  confidence_level?: string;
-  status?: string;
-  feedback?: string;
-  suggestion?: string;
-  hand_position?: string;
-  hand_distance?: string;
-  gesture_quality?: string;
+  hold_seconds?: number;
   message?: string;
+  assessment?: {
+    correct_predictions: number;
+    total_predictions: number;
+    accuracy_percentage: number;
+    score: number;
+    grade: string;
+  };
 };
 
+// Placeholder lesson id — Practice's route (/practice) doesn't carry a real
+// lesson id yet (same known gap as LessonView). Swap for a real id once
+// lesson selection flows through routing/context.
+const PLACEHOLDER_LESSON_ID = 1;
+
 export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
+  const { userId } = useAuth();
   const [attempts, setAttempts] = useState(0);
   const [sign, setSign] = useState("A");
   const SIGNS = ["A", "B", "C", "D", "E"];
@@ -36,9 +44,13 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
-  const [result, setResult] = useState<PredictResult | null>(null);
+  const [result, setResult] = useState<AttemptResult | null>(null);
 
-  // Real webcam feed via getUserMedia — matches SRS FR-1/Day 5 requirement.
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const holdStartedAt = useRef<string | null>(null);
+
+  // Real webcam feed via getUserMedia.
   useEffect(() => {
     let stream: MediaStream | null = null;
     navigator.mediaDevices
@@ -54,10 +66,27 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
     return () => stream?.getTracks().forEach(t => t.stop());
   }, []);
 
-  // Capture the current video frame to a canvas, convert to a JPEG blob,
-  // and send it to the real AI service (Intern 3's /predict endpoint).
+  // Start a real practice session as soon as we know who the learner is.
+  // Falls back to a mock UUID if not logged in with a real user_id yet
+  // (e.g. came through the signup/onboarding mock flow).
+  useEffect(() => {
+    const uid = userId ?? "00000000-0000-0000-0000-000000000000";
+    startPracticeSession(uid, PLACEHOLDER_LESSON_ID)
+      .then(session => {
+        setSessionId(session.session_id);
+        localStorage.setItem("current_session_id", session.session_id);
+        localStorage.setItem("current_expected_sign", sign);
+      })
+      .catch(() => setSessionError("Couldn't start a practice session. Is the Business Logic service running on port 8002?"));
+    holdStartedAt.current = new Date().toISOString();
+  }, []);
+
+  // Capture the current frame and submit it as a real attempt — this goes
+  // through Business Logic's /practice/{session_id}/attempt, which calls
+  // the AI service internally AND records the assessment, unlike calling
+  // the AI service directly (which would skip scoring entirely).
   const handleCapture = async () => {
-    if (!videoRef.current || !canvasRef.current) return;
+    if (!videoRef.current || !canvasRef.current || !sessionId) return;
     setCapturing(true);
     setResult(null);
 
@@ -71,20 +100,24 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
     canvas.toBlob(async (blob) => {
       if (!blob) { setCapturing(false); return; }
       try {
-        const data: PredictResult = await predictSign(blob);
+        const data: AttemptResult = await submitPracticeAttempt(
+          sessionId, sign, blob, holdStartedAt.current ?? undefined
+        );
         setResult(data);
         setAttempts(a => a + 1);
+        localStorage.setItem("current_expected_sign", sign);
       } catch (e) {
-        setResult({ success: false, message: "AI service unavailable. Is it running on port 8001?" });
+        setResult({ success: false, message: "Business Logic service unavailable. Is it running on port 8002?" });
       } finally {
         setCapturing(false);
+        holdStartedAt.current = new Date().toISOString();
       }
     }, "image/jpeg", 0.9);
   };
 
-  const conf = result?.confidence != null ? Math.round(result.confidence * 100) : null;
-  const confCol = conf == null ? "bg-[#1a2844]" : conf >= 80 ? "bg-emerald-500" : conf >= 60 ? "bg-amber-500" : "bg-rose-500";
-  const confTxt = conf == null ? "text-muted-foreground" : conf >= 80 ? "text-emerald-400" : conf >= 60 ? "text-amber-400" : "text-rose-400";
+  const acc = result?.assessment?.accuracy_percentage ?? null;
+  const confCol = acc == null ? "bg-[#1a2844]" : acc >= 80 ? "bg-emerald-500" : acc >= 60 ? "bg-amber-500" : "bg-rose-500";
+  const confTxt = acc == null ? "text-muted-foreground" : acc >= 80 ? "text-emerald-400" : acc >= 60 ? "text-amber-400" : "text-rose-400";
 
   return (
     <div className="h-full bg-[#060b13] flex flex-col overflow-hidden">
@@ -116,6 +149,12 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
             </div>
           )}
 
+          {sessionError && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-rose-950/70 border border-rose-900/50 text-rose-400 text-xs px-4 py-2 rounded-xl backdrop-blur-sm">
+              {sessionError}
+            </div>
+          )}
+
           <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-full">
             <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${cameraReady ? "bg-emerald-400" : "bg-muted-foreground"}`} />
             <span className="text-xs text-muted-foreground">{cameraReady ? "Camera live" : "Connecting..."}</span>
@@ -130,7 +169,7 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
               result.success ? "bg-emerald-950/70 text-emerald-400 border border-emerald-900/50" : "bg-rose-950/70 text-rose-400 border border-rose-900/50"
             }`}>
               {result.success
-                ? `Predicted: ${result.prediction} · ${result.feedback ?? ""}`
+                ? `Predicted: ${result.predicted_sign} · Score: ${result.assessment?.score ?? "—"} (${result.assessment?.grade ?? "—"})`
                 : (result.message ?? "No prediction")}
             </div>
           )}
@@ -145,7 +184,7 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
             </button>
             <button
               onClick={handleCapture}
-              disabled={!cameraReady || capturing}
+              disabled={!cameraReady || !sessionId || capturing}
               className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed text-black px-6 py-2.5 rounded-xl text-sm font-bold transition-colors"
             >
               {capturing ? <Loader2 size={15} className="animate-spin" /> : <Camera size={15} />}
@@ -153,10 +192,11 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
             </button>
             <button
               onClick={() => go("feedback")}
-              className="flex items-center gap-2 bg-[#0e1a30]/80 backdrop-blur border border-border hover:border-cyan-900/40 text-foreground px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
+              disabled={!sessionId}
+              className="flex items-center gap-2 bg-[#0e1a30]/80 backdrop-blur border border-border hover:border-cyan-900/40 text-foreground px-5 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-60"
             >
               <SkipForward size={15} />
-              Next Sign
+              Get Feedback
             </button>
           </div>
         </div>
@@ -178,31 +218,25 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
 
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">AI Confidence</div>
-              <span className={`text-xl font-bold ${confTxt}`}>{conf != null ? `${conf}%` : "—"}</span>
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Accuracy Score</div>
+              <span className={`text-xl font-bold ${confTxt}`}>{acc != null ? `${acc}%` : "—"}</span>
             </div>
             <div className="h-2.5 bg-[#1a2844] rounded-full overflow-hidden mb-1">
-              <div className={`h-full rounded-full transition-all duration-300 ${confCol}`} style={{ width: `${conf ?? 0}%` }} />
+              <div className={`h-full rounded-full transition-all duration-300 ${confCol}`} style={{ width: `${acc ?? 0}%` }} />
             </div>
             <div className="flex justify-between text-[10px] text-muted-foreground">
               <span>Low</span>
-              <span className={confTxt}>{result?.confidence_level ?? "Waiting for capture"}</span>
+              <span className={confTxt}>{result?.assessment?.grade ? `Grade ${result.assessment.grade}` : "Waiting for capture"}</span>
               <span>High</span>
             </div>
           </div>
 
-          {result?.success && (
+          {result?.success && result.assessment && (
             <div>
-              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">AI Feedback</div>
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Session Stats</div>
               <div className="space-y-1.5 text-xs text-muted-foreground">
-                <div>Position: <span className="text-foreground">{result.hand_position}</span></div>
-                <div>Distance: <span className="text-foreground">{result.hand_distance}</span></div>
-                <div>Quality: <span className="text-foreground">{result.gesture_quality}</span></div>
-                {result.suggestion && (
-                  <div className="mt-2 p-2 rounded-lg bg-cyan-950/30 border border-cyan-900/30 text-cyan-400">
-                    {result.suggestion}
-                  </div>
-                )}
+                <div>Correct: <span className="text-foreground">{result.assessment.correct_predictions} / {result.assessment.total_predictions}</span></div>
+                <div>Hold time: <span className="text-foreground">{result.hold_seconds?.toFixed(1) ?? "—"}s</span></div>
               </div>
             </div>
           )}

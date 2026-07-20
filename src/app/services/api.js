@@ -7,7 +7,7 @@
 // USE_MOCKS.
 
 const BASE_URL = "http://localhost:8000";
-export const USE_MOCKS = true; // flip to false once backend is reachable
+export const USE_MOCKS = false; // flip to false once backend is reachable
 
 function getToken() {
   return localStorage.getItem("token");
@@ -40,7 +40,7 @@ const delay = (v) => new Promise((r) => setTimeout(() => r(v), MOCK_DELAY));
 export async function registerUser({ name, email, password, role }) {
   if (USE_MOCKS) {
     return delay({
-      user_id: "mock-user-1",
+      user_id: "00000000-0000-0000-0000-000000000001",
       full_name: name,
       email,
       roles: ["learner"],

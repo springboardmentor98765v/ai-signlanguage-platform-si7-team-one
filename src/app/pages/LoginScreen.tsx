@@ -13,7 +13,7 @@ import { loginUser, USE_MOCKS } from "../services/api";
 
 export default function LoginScreen({
   onLogin, goSignup,
-}: { onLogin: (r: Role) => void; goSignup: () => void }) {
+}: { onLogin: (r: Role, userId?: string) => void; goSignup: () => void }) {
   const [email, setEmail] = useState("maya.chen@example.com");
   const [pw, setPw] = useState("password123");
   const [show, setShow] = useState(false);
@@ -27,7 +27,7 @@ export default function LoginScreen({
     try {
       if (USE_MOCKS) localStorage.setItem("role", selectedRole);
       const data = await loginUser({ email, password: pw });
-      onLogin(data.role as Role);
+      onLogin(data.role as Role, data.user?.user_id);
     } catch (e) {
       setError("Invalid email or password. Please try again.");
     } finally {

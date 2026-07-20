@@ -44,8 +44,8 @@ function LoginRoute() {
   const navigate = useNavigate();
   return (
     <LoginScreen
-      onLogin={(r: Role) => {
-        login(r, "mock-jwt-token");
+      onLogin={(r: Role, userId?: string) => {
+        login(r, "mock-jwt-token", userId);
         navigate("/dashboard");
       }}
       goSignup={() => navigate("/signup")}

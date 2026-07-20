@@ -7,7 +7,7 @@
 // (src/api.py, history.py, analytics.py, dashboard.py) on 2026-07-19.
 
 const AI_BASE_URL = "http://127.0.0.1:8001";
-export const AI_USE_MOCKS = true; // flip to false once you/team have this running locally
+export const AI_USE_MOCKS = false; // flip to false once you/team have this running locally
 
 const delay = (v) => new Promise((r) => setTimeout(() => r(v), 400));
 

@@ -11,85 +11,104 @@ import type { Screen } from "../lib/types";
 import { HandOverlay } from "../components/shared/HandOverlay";
 import { Bdg, Ring } from "../components/shared/Indicators";
 import { FlowStepper } from "../components/shared/FlowStepper";
+import { generateFeedback, getAssessment } from "../services/businessApi";
+
+interface FeedbackItem { feedback_type: string; message: string; severity: string; }
+interface Assessment {
+  correct_predictions: number; total_predictions: number;
+  accuracy_percentage: number; score: number; grade: string;
+}
 
 export default function FeedbackScreen({ go }: { go: (s: Screen) => void }) {
+  const [items, setItems] = useState<FeedbackItem[]>([]);
+  const [assessment, setAssessment] = useState<Assessment | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Pulls the session_id stashed by PracticeScreen — no router-state
+  // plumbing for it yet, this is the simplest reliable hand-off for a
+  // single active session. Real feedback requires at least one attempt
+  // to have been submitted (assessment must already exist server-side).
+  useEffect(() => {
+    const sessionId = localStorage.getItem("current_session_id");
+    const expectedSign = localStorage.getItem("current_expected_sign") ?? undefined;
+    if (!sessionId) {
+      setError("No active practice session found. Try a sign in Practice first.");
+      setLoading(false);
+      return;
+    }
+    Promise.all([
+      generateFeedback(sessionId, expectedSign),
+      getAssessment(sessionId).catch(() => null),
+    ])
+      .then(([fb, assess]) => {
+        setItems(fb.feedback ?? []);
+        if (assess) setAssessment(assess);
+      })
+      .catch(() => setError("Couldn't generate feedback. Is the Business Logic service running on port 8002?"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const severityStyle = (s: string) =>
+    s === "high"   ? "border-rose-900/50 bg-rose-950/20" :
+    s === "medium" ? "border-amber-900/50 bg-amber-950/20" :
+                      "border-emerald-900/50 bg-emerald-950/20";
+  const severityIcon = (s: string) =>
+    s === "high"   ? <XCircle size={13} className="text-rose-400" /> :
+    s === "medium" ? <AlertTriangle size={13} className="text-amber-400" /> :
+                      <CheckCircle size={13} className="text-emerald-400" />;
+
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-5 max-w-5xl mx-auto space-y-4">
       <FlowStepper active={3} />
 
-      <div className="bg-card border border-border rounded-[14px] p-6 flex items-center gap-5" style={{ boxShadow: 'var(--card-shadow)' }}>
-        <Ring pct={84} size={96} />
+      <div className="bg-card border border-border rounded-xl p-5 flex items-center gap-5">
+        <Ring pct={assessment?.accuracy_percentage ?? 0} size={88} />
         <div>
-          <h2 className="text-lg font-bold text-foreground">Great work, Maya!</h2>
-          <p className="text-muted-foreground text-sm mt-1.5">
-            You scored 84% on FEAR — a 9-point improvement from your last attempt.
-          </p>
-          <div className="flex gap-2 mt-3">
-            <Bdg label="Personal Best 🎉" v="success" />
-            <Bdg label="4th Attempt" v="info" />
-          </div>
-        </div>
-        <div className="ml-auto text-right">
-          <div className="text-xs text-muted-foreground">Accuracy trend</div>
-          <div className="text-2xl font-bold text-success mt-0.5">+9%</div>
+          <h2 className="text-lg font-bold text-foreground">
+            {loading ? "Loading feedback..." : assessment ? "Here's how you did" : "No results yet"}
+          </h2>
+          {assessment && (
+            <p className="text-muted-foreground text-sm mt-1">
+              {assessment.correct_predictions} of {assessment.total_predictions} correct · Score {assessment.score} · Grade {assessment.grade}
+            </p>
+          )}
+          {error && <p className="text-rose-400 text-sm mt-1">{error}</p>}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-5">
-        {[
-          { lbl: "Your Attempt", col: "bg-primary", badge: <Bdg label="84%" v="info" />, anim: true },
-          { lbl: "Reference Sign", col: "bg-success", badge: <Bdg label="Target" v="success" />, anim: false },
-        ].map(({ lbl, col, badge, anim }) => (
-          <div key={lbl} className="bg-card border border-border rounded-[14px] overflow-hidden" style={{ boxShadow: 'var(--card-shadow)' }}>
-            <div className="p-3 border-b border-border flex items-center gap-2">
-              <div className={`w-2.5 h-2.5 rounded-full ${col}`} />
-              <span className="text-xs font-semibold text-foreground">{lbl}</span>
-              {badge}
-            </div>
-            <div className="flex items-center justify-center py-4 bg-muted h-40">
-              <HandOverlay w={160} h={130} animated={anim} />
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="bg-card border border-border rounded-[14px] p-6" style={{ boxShadow: 'var(--card-shadow)' }}>
-        <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2 text-sm">
-          <MessageCircle size={15} className="text-primary" />
-          AI Correction Tips
+      <div className="bg-card border border-border rounded-xl p-5">
+        <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2 text-sm">
+          <MessageCircle size={15} className="text-cyan-400" />
+          AI Feedback
         </h3>
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { a: "Hand Shape",       s: "good",    t: "Fingers spread correctly — palm orientation matches reference." },
-            { a: "Movement",         s: "warning", t: "The upward trembling motion needs slightly more speed." },
-            { a: "Facial Expression",s: "error",   t: "Widen the eyes more — this is critical for FEAR in ASL." },
-            { a: "Location",         s: "good",    t: "Hand positioned at the correct height relative to shoulder." },
-          ].map(({ a, s, t }) => (
-            <div key={a} className={`p-3 rounded-xl border ${
-              s === "good" ? "border-success/30 bg-success/5" :
-              s === "warning" ? "border-warning/30 bg-warning/5" :
-              "border-danger/30 bg-danger/5"
-            }`}>
-              <div className="flex items-center gap-1.5 mb-1">
-                {s === "good" ? <CheckCircle size={13} className="text-success" /> :
-                 s === "warning" ? <AlertTriangle size={13} className="text-warning" /> :
-                 <XCircle size={13} className="text-danger" />}
-                <span className="text-xs font-semibold text-foreground">{a}</span>
+        {loading && <div className="h-20 bg-[#0e1a30] rounded-lg animate-pulse" />}
+        {!loading && items.length === 0 && !error && (
+          <p className="text-xs text-muted-foreground">No feedback items generated yet.</p>
+        )}
+        {!loading && items.length > 0 && (
+          <div className="grid grid-cols-2 gap-3">
+            {items.map((item, i) => (
+              <div key={i} className={`p-3 rounded-lg border ${severityStyle(item.severity)}`}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  {severityIcon(item.severity)}
+                  <span className="text-xs font-semibold text-foreground capitalize">{item.feedback_type}</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">{item.message}</p>
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">{t}</p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-3">
-        <button onClick={() => go("practice")} className="flex items-center gap-2 bg-muted border border-border hover:bg-hover text-foreground px-4 py-2.5 rounded-xl text-sm font-semibold transition-all">
+        <button onClick={() => go("practice")} className="flex items-center gap-2 bg-[#0e1a30] border border-border hover:border-cyan-900/40 text-foreground px-4 py-2.5 rounded-xl text-sm font-semibold transition-all">
           <RotateCcw size={14} />
-          Try FEAR Again
+          Try Again
         </button>
-        <button onClick={() => go("practice")} className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-bold transition-colors">
+        <button onClick={() => go("practice")} className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-black px-5 py-2.5 rounded-xl text-sm font-bold transition-colors">
           <SkipForward size={14} />
-          Next: SURPRISE
+          Next Sign
         </button>
         <button onClick={() => go("progress")} className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
           View Progress <TrendingUp size={13} />
@@ -98,5 +117,3 @@ export default function FeedbackScreen({ go }: { go: (s: Screen) => void }) {
     </div>
   );
 }
-
-// ── Progress Analytics ─────────────────────────────────────────────────────

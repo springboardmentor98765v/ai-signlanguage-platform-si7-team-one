@@ -5,8 +5,10 @@ import { getProfile, logoutUser } from "../services/api";
 interface AuthState {
   isAuthenticated: boolean;
   role: Role;
+  userId: string | null; // real UUID from backend's UserResponse — needed by
+                          // Business Logic's /practice/start (user_id: UUID)
   loading: boolean;
-  login: (role: Role, token?: string) => void;
+  login: (role: Role, token?: string, userId?: string) => void;
   logout: () => void;
   setRole: (r: Role) => void;
 }
@@ -16,14 +18,17 @@ const AuthContext = createContext<AuthState | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [role, setRoleState] = useState<Role>("learner");
+  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     const storedRole = localStorage.getItem("role") as Role | null;
+    const storedUserId = localStorage.getItem("user_id");
     if (token) {
       setIsAuthenticated(true);
       setRoleState(storedRole || "learner");
+      setUserId(storedUserId);
       getProfile().catch(() => {
         // token invalid/expired — force logout
         logoutUser();
@@ -34,15 +39,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = (r: Role, token?: string) => {
+  const login = (r: Role, token?: string, uid?: string) => {
     if (token) localStorage.setItem("token", token);
     localStorage.setItem("role", r);
     setRoleState(r);
+    if (uid) {
+      localStorage.setItem("user_id", uid);
+      setUserId(uid);
+    }
     setIsAuthenticated(true);
   };
 
   const logout = () => {
     logoutUser();
+    localStorage.removeItem("user_id");
+    setUserId(null);
     setIsAuthenticated(false);
   };
 
@@ -52,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, role, loading, login, logout, setRole }}>
+    <AuthContext.Provider value={{ isAuthenticated, role, userId, loading, login, logout, setRole }}>
       {children}
     </AuthContext.Provider>
   );
