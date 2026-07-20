@@ -1,8 +1,10 @@
-// Central API layer — matches Intern 2's API_CONTRACT.md exactly.
+// Central API layer — realigned against Intern 2's actual backend code
+// (routers/auth.py, routers/courses.py) as of 2026-07-19, since the
+// original API_CONTRACT.md doc turned out to be stale in several places.
 // Base URL http://localhost:8000. Every function below returns mock data
 // today and is a one-line swap to the real fetch call once the backend
-// endpoint is confirmed live (SRS Day 6 task). Toggle per-function or
-// globally with USE_MOCKS.
+// endpoint is confirmed live. Toggle per-function or globally with
+// USE_MOCKS.
 
 const BASE_URL = "http://localhost:8000";
 export const USE_MOCKS = true; // flip to false once backend is reachable
@@ -32,44 +34,68 @@ const MOCK_DELAY = 300;
 const delay = (v) => new Promise((r) => setTimeout(() => r(v), MOCK_DELAY));
 
 // ── Auth ──────────────────────────────────────────────────────────────────
+// NOTE: realigned against Intern 2's actual routers/auth.py + courses.py
+// (2026-07-19), which diverge from the original API_CONTRACT.md doc in
+// several ways — see comments on each function below.
 export async function registerUser({ name, email, password, role }) {
   if (USE_MOCKS) {
-    return delay({ message: "User registered successfully" });
+    return delay({
+      user_id: "mock-user-1",
+      full_name: name,
+      email,
+      roles: ["learner"],
+      created_at: new Date().toISOString(),
+    });
   }
+  // Real endpoint ignores `role` — every new user is created as "learner"
+  // server-side (see DEFAULT_ROLE in auth.py). Field is full_name, not name.
+  // Returns 201 + a full UserResponse, not just { message }.
   return request("/auth/register", {
     method: "POST",
-    body: JSON.stringify({ name, email, password, role }),
+    body: JSON.stringify({ full_name: name, email, password }),
   });
 }
 
 export async function loginUser({ email, password }) {
   if (USE_MOCKS) {
-    const data = { access_token: "mock-jwt-token", token_type: "Bearer" };
+    const data = {
+      access_token: "mock-jwt-token",
+      token_type: "bearer",
+      user: {
+        user_id: "mock-user-1",
+        full_name: "Maya Chen",
+        email,
+        roles: [localStorage.getItem("role") || "learner"],
+        created_at: new Date().toISOString(),
+      },
+    };
     localStorage.setItem("token", data.access_token);
-    const profile = await getProfile();
-    localStorage.setItem("role", profile.role);
-    return { ...data, role: profile.role };
+    localStorage.setItem("role", data.user.roles[0]);
+    return { ...data, role: data.user.roles[0] };
   }
-  // Real contract only returns { access_token, token_type } — no role.
-  // Role has to come from a follow-up /auth/profile call.
+  // Real endpoint returns { access_token, user: { ...UserResponse, roles: [] } }
+  // — role comes back directly here, no separate /auth/profile call needed.
   const data = await request("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
   localStorage.setItem("token", data.access_token);
-  const profile = await getProfile();
-  localStorage.setItem("role", profile.role);
-  return { ...data, role: profile.role };
+  const role = data.user?.roles?.[0] ?? "learner";
+  localStorage.setItem("role", role);
+  return { ...data, role };
 }
 
 export async function getProfile() {
   if (USE_MOCKS) {
     return delay({
-      name: "Maya Chen",
+      user_id: "mock-user-1",
+      full_name: "Maya Chen",
       email: "maya.chen@example.com",
-      role: localStorage.getItem("role") || "learner",
+      roles: [localStorage.getItem("role") || "learner"],
+      created_at: new Date().toISOString(),
     });
   }
+  // Real response: UserResponse { user_id, full_name, email, roles: [], created_at }
   return request("/auth/profile");
 }
 
@@ -79,49 +105,55 @@ export function logoutUser() {
 }
 
 // ── Courses / Lessons ────────────────────────────────────────────────────
+// ⚠️ PRODUCT GAP: as of 2026-07-19, Intern 2's backend has NO course-level
+// endpoint at all — only /courses/lessons (flat lesson list) and
+// /courses/lessons/{id}. There is no /courses or /courses/{id} route.
+// getCourses()/getCourseById() below stay mock-only until this is
+// resolved with Intern 2 — CourseCatalog.tsx currently has no real data
+// source to attach to. Flag this in stand-up before Day 7.
 export async function getCourses() {
-  if (USE_MOCKS) {
-    return delay([
-      { id: "1", title: "ASL Fundamentals", difficulty: "Beginner", lessons: 24,
-        desc: "Core signs, alphabet, and basic phrases.", hrs: "6 hrs", pct: 100, cat: "ASL" },
-      { id: "2", title: "ASL Intermediate", difficulty: "Intermediate", lessons: 32,
-        desc: "Emotions, questions, and sentence structure.", hrs: "9 hrs", pct: 68, cat: "ASL" },
-      { id: "3", title: "ASL Advanced Conversation", difficulty: "Advanced", lessons: 28,
-        desc: "Classifiers, complex grammar, and fluent ASL.", hrs: "12 hrs", pct: 0, cat: "ASL" },
-      { id: "4", title: "BSL Basics", difficulty: "Beginner", lessons: 20,
-        desc: "Introduction to British Sign Language.", hrs: "5 hrs", pct: 0, cat: "BSL" },
-      { id: "5", title: "Medical Sign Language", difficulty: "Intermediate", lessons: 18,
-        desc: "Healthcare vocabulary for clinical environments.", hrs: "4 hrs", pct: 12, cat: "Specialized" },
-      { id: "6", title: "Numbers & Math Signs", difficulty: "Beginner", lessons: 10,
-        desc: "Counting, arithmetic, and quantities.", hrs: "2 hrs", pct: 45, cat: "ASL" },
-    ]);
-  }
-  // Real contract returns only { id, title, difficulty } per course — no
-  // desc/hrs/pct/cat/lessons yet. CourseCatalog's toUiCourse() already
-  // fills safe defaults for whatever fields are missing.
-  return request("/courses");
+  return delay([
+    { id: "1", title: "ASL Fundamentals", difficulty: "Beginner", lessons: 24,
+      desc: "Core signs, alphabet, and basic phrases.", hrs: "6 hrs", pct: 100, cat: "ASL" },
+    { id: "2", title: "ASL Intermediate", difficulty: "Intermediate", lessons: 32,
+      desc: "Emotions, questions, and sentence structure.", hrs: "9 hrs", pct: 68, cat: "ASL" },
+    { id: "3", title: "ASL Advanced Conversation", difficulty: "Advanced", lessons: 28,
+      desc: "Classifiers, complex grammar, and fluent ASL.", hrs: "12 hrs", pct: 0, cat: "ASL" },
+    { id: "4", title: "BSL Basics", difficulty: "Beginner", lessons: 20,
+      desc: "Introduction to British Sign Language.", hrs: "5 hrs", pct: 0, cat: "BSL" },
+    { id: "5", title: "Medical Sign Language", difficulty: "Intermediate", lessons: 18,
+      desc: "Healthcare vocabulary for clinical environments.", hrs: "4 hrs", pct: 12, cat: "Specialized" },
+    { id: "6", title: "Numbers & Math Signs", difficulty: "Beginner", lessons: 10,
+      desc: "Counting, arithmetic, and quantities.", hrs: "2 hrs", pct: 45, cat: "ASL" },
+  ]);
 }
 
 export async function getCourseById(id) {
-  if (USE_MOCKS) {
-    return delay({ id, title: "Alphabet Basics", difficulty: "Beginner", description: "Learn the alphabet in sign language." });
-  }
-  return request(`/courses/${id}`);
+  return delay({ id, title: "Alphabet Basics", difficulty: "Beginner", description: "Learn the alphabet in sign language." });
 }
 
-export async function getLessons() {
+export async function getLessons(moduleId) {
   if (USE_MOCKS) {
     return delay([
-      { id: "1", course_id: "1", lesson_name: "Letter A" },
-      { id: "2", course_id: "1", lesson_name: "Letter B" },
+      { lesson_id: 1, module_id: 1, title: "Letter A", description: "Introduction to the sign for A",
+        sequence_order: 1, difficulty_level: "beginner", is_published: true, created_at: new Date().toISOString() },
+      { lesson_id: 2, module_id: 1, title: "Letter B", description: "Introduction to the sign for B",
+        sequence_order: 2, difficulty_level: "beginner", is_published: true, created_at: new Date().toISOString() },
     ]);
   }
-  return request("/lessons");
+  // Confirmed via schemas/course.py: GET /courses/lessons (optional
+  // ?module_id= filter), returns LessonResponse[] — { lesson_id, module_id,
+  // title, description, sequence_order, difficulty_level, is_published,
+  // created_at }.
+  const qs = moduleId ? `?module_id=${moduleId}` : "";
+  return request(`/courses/lessons${qs}`);
 }
 
 export async function getLessonById(id) {
   if (USE_MOCKS) {
-    return delay({ id, course_id: "1", lesson_name: "Letter A" });
+    return delay({ lesson_id: id, module_id: 1, title: "Letter A", description: "Introduction to the sign for A",
+      sequence_order: 1, difficulty_level: "beginner", is_published: true, created_at: new Date().toISOString() });
   }
-  return request(`/lessons/${id}`);
+  // Confirmed: GET /courses/lessons/{lesson_id} -> LessonResponse
+  return request(`/courses/lessons/${id}`);
 }
