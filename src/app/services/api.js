@@ -7,7 +7,7 @@
 // USE_MOCKS.
 
 const BASE_URL = "http://localhost:8000";
-export const USE_MOCKS = false; // flip to false once backend is reachable
+export const USE_MOCKS = true; // flip to false once backend is reachable
 
 function getToken() {
   return localStorage.getItem("token");
@@ -62,7 +62,7 @@ export async function loginUser({ email, password }) {
       access_token: "mock-jwt-token",
       token_type: "bearer",
       user: {
-        user_id: "mock-user-1",
+        user_id: "00000000-0000-0000-0000-000000000001",
         full_name: "Maya Chen",
         email,
         roles: [localStorage.getItem("role") || "learner"],
@@ -88,7 +88,7 @@ export async function loginUser({ email, password }) {
 export async function getProfile() {
   if (USE_MOCKS) {
     return delay({
-      user_id: "mock-user-1",
+      user_id: "00000000-0000-0000-0000-000000000001",
       full_name: "Maya Chen",
       email: "maya.chen@example.com",
       roles: [localStorage.getItem("role") || "learner"],
