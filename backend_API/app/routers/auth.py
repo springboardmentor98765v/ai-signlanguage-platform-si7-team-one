@@ -98,3 +98,76 @@ def profile(current_user: User = Depends(get_current_user)):
         roles=get_user_roles(current_user),
         created_at=current_user.created_at,
     )
+
+from app.schemas.user import UpdateProfileRequest, ChangePasswordRequest, ForgotPasswordRequest, ResetPasswordRequest
+import secrets
+
+# In-memory reset token store for now (Intern 5 will give you a real table later)
+reset_tokens: dict[str, str] = {}  # token -> user_email
+
+
+@router.put("/me", response_model=UserResponse)
+def update_profile(
+    payload: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if payload.full_name:
+        current_user.full_name = payload.full_name
+    if payload.email:
+        existing = db.query(User).filter(User.email == payload.email, User.user_id != current_user.user_id).first()
+        if existing:
+            raise HTTPException(status_code=409, detail="Email already in use")
+        current_user.email = payload.email
+    db.commit()
+    db.refresh(current_user)
+    return UserResponse(
+        user_id=current_user.user_id, full_name=current_user.full_name,
+        email=current_user.email, roles=get_user_roles(current_user),
+        created_at=current_user.created_at,
+    )
+
+
+@router.put("/me/password")
+def change_password(
+    payload: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not verify_password(payload.old_password, current_user.password_hash):
+        raise HTTPException(status_code=401, detail="Old password is incorrect")
+    current_user.password_hash = hash_password(payload.new_password)
+    db.commit()
+    return {"message": "Password updated successfully"}
+
+
+@router.post("/forgot-password")
+def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user:
+        # Don't reveal whether email exists — security best practice
+        return {"message": "If that email exists, a reset link has been sent"}
+
+    token = secrets.token_urlsafe(32)
+    reset_tokens[token] = payload.email
+
+    # Free-tool approach: print to console instead of real email for now
+    print(f"\n[PASSWORD RESET] Reset link for {payload.email}: http://localhost:3000/reset-password?token={token}\n")
+
+    return {"message": "If that email exists, a reset link has been sent"}
+
+
+@router.post("/reset-password")
+def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    email = reset_tokens.get(payload.token)
+    if not email:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.password_hash = hash_password(payload.new_password)
+    db.commit()
+    del reset_tokens[payload.token]
+    return {"message": "Password reset successfully"}

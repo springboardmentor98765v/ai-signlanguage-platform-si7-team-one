@@ -33,3 +33,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+from app.routers import auth, courses, health, predict, instructor, admin
+...
+app.include_router(instructor.router)
+app.include_router(admin.router)

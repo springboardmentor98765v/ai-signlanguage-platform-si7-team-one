@@ -67,3 +67,23 @@ def delete_lesson(
         raise HTTPException(status_code=404, detail="Lesson not found")
     db.delete(lesson)
     db.commit()
+
+    
+
+
+
+@router.get("/lessons", response_model=list[LessonResponse])
+def list_lessons(
+    module_id: int | None = None,
+    search: str | None = None,
+    page: int = 1,
+    page_size: int = 10,
+    db: Session = Depends(get_db),
+):
+    query = db.query(Lesson).filter(Lesson.is_published.is_(True))
+    if module_id:
+        query = query.filter(Lesson.module_id == module_id)
+    if search:
+        query = query.filter(Lesson.title.ilike(f"%{search}%"))
+    offset = (page - 1) * page_size
+    return query.order_by(Lesson.sequence_order).offset(offset).limit(page_size).all()
