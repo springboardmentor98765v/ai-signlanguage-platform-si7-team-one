@@ -6,14 +6,22 @@
 // No auth on this service currently — same caveat as the AI service.
 
 const BUSINESS_BASE_URL = "http://127.0.0.1:8002";
-export const BUSINESS_USE_MOCKS = false; // flip to false once running locally
+export const BUSINESS_USE_MOCKS = true; // flip to false once running locally
 
 const delay = (v) => new Promise((r) => setTimeout(() => r(v), 300));
 
 async function businessRequest(path, options = {}) {
+  // Don't force Content-Type when sending FormData (file uploads) — the
+  // browser needs to set its own multipart/form-data boundary, which a
+  // hardcoded application/json header silently breaks (causes a 422 on
+  // /practice/{id}/attempt since FastAPI can't parse the form fields).
+  const isFormData = options.body instanceof FormData;
   const res = await fetch(`${BUSINESS_BASE_URL}${path}`, {
     ...options,
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    headers: {
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
+      ...(options.headers || {}),
+    },
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
