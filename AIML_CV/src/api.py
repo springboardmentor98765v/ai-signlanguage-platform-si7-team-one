@@ -177,18 +177,19 @@ async def predict_sign(file: UploadFile = File(...)):
 
 
     return {
-        "success": True,
-        "prediction": label,
-        "confidence": round(confidence, 4),
-        "confidence_level": feedback["confidence_level"],
-        "status": feedback["status"],
-        "feedback": feedback["feedback"],
-        "processing_time_ms": processing_time,
-        "hand_position": quality["hand_position"],
-        "hand_distance": quality["hand_distance"],
-        "gesture_quality": quality["gesture_quality"],
-        "suggestion": quality["suggestion"]
-    }
+    "success": True,
+    "prediction": label,
+    "confidence": round(confidence * 100, 2),
+    "confidence_level": feedback["confidence_level"],
+    "status": feedback["status"],
+    "feedback": feedback["feedback"],
+    "possible_issue": feedback["possible_issue"],
+    "processing_time_ms": processing_time,
+    "hand_position": quality["hand_position"],
+    "hand_distance": quality["hand_distance"],
+    "gesture_quality": quality["gesture_quality"],
+    "suggestion": quality["suggestion"]
+}
 
 
 # ==================================================
