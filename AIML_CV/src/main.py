@@ -3,6 +3,7 @@ import cv2
 from camera import Camera
 from detector import HandDetector
 from feature_extractor import FeatureExtractor
+from predict import predict_gesture
 from config import WINDOW_NAME
 
 camera = Camera()
@@ -22,10 +23,14 @@ while True:
 
         features = extractor.extract_features(landmarks)
 
-        # Display feature information
+        result = predict_gesture(features)
+
+        gesture = result["gesture"]
+        confidence = result["confidence"]
+
         cv2.putText(
             frame,
-            f"Features: {len(features)}",
+            f"Gesture : {gesture}",
             (10, 30),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
@@ -35,8 +40,28 @@ while True:
 
         cv2.putText(
             frame,
-            "Hand: Detected",
+            f"Confidence : {confidence:.2f}%",
             (10, 60),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (0, 255, 0),
+            2
+        )
+
+        cv2.putText(
+            frame,
+            f"Features : {len(features)}",
+            (10, 90),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (255, 255, 0),
+            2
+        )
+
+        cv2.putText(
+            frame,
+            "Hand : Detected",
+            (10, 120),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
             (0, 255, 0),
@@ -47,7 +72,7 @@ while True:
 
         cv2.putText(
             frame,
-            "Hand: Not Detected",
+            "Hand : Not Detected",
             (10, 30),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
