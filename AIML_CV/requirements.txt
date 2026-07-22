@@ -1,9 +1,12 @@
+fastapi
+uvicorn
+python-multipart
 opencv-python
 mediapipe
 numpy
 pandas
-matplotlib
 scikit-learn
-fastapi
-uvicorn
+xgboost
 joblib
+pillow
+requests
