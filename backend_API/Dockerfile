@@ -1,3 +1,5 @@
+# Assumes backend_API/app/main.py is present after backend branch merge.
+
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
