@@ -8,32 +8,165 @@ import {
   SkipForward, Calendar, Lock, Mail, Check, ChevronLeft, Sun, Moon,
 } from "lucide-react";
 import { useTheme } from "../ThemeProvider";
+import { useAuth } from "../context/AuthContext";
+import { getProfile, updateProfile, changePassword } from "../services/api";
+import { Bdg } from "../components/shared/Indicators";
 
 export default function SettingsScreen() {
   const [emailN, setEmailN] = useState(true);
   const [pushN, setPushN] = useState(true);
   const [auto, setAuto] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const { role } = useAuth();
+
+  // ── Profile: real data (M2 Day 2) ──────────────────────────────────────
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  useEffect(() => {
+    getProfile()
+      .then(p => { setFullName(p.full_name ?? ""); setEmail(p.email ?? ""); })
+      .catch(() => setProfileError("Couldn't load your profile."))
+      .finally(() => setProfileLoading(false));
+  }, []);
+
+  const handleSaveProfile = async () => {
+    setProfileSaving(true);
+    setProfileError(null);
+    setProfileSaved(false);
+    try {
+      await updateProfile({ fullName, email });
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 2500);
+    } catch (e) {
+      setProfileError("Couldn't save changes. Try again.");
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  // ── Change Password (M2 Day 2) ─────────────────────────────────────────
+  const [oldPw, setOldPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwSaved, setPwSaved] = useState(false);
+
+  const handleChangePassword = async () => {
+    setPwError(null);
+    setPwSaved(false);
+    if (newPw.length < 6) {
+      setPwError("New password must be at least 6 characters.");
+      return;
+    }
+    if (newPw !== confirmPw) {
+      setPwError("New password and confirmation don't match.");
+      return;
+    }
+    if (!oldPw) {
+      setPwError("Enter your current password.");
+      return;
+    }
+    setPwSaving(true);
+    try {
+      await changePassword({ oldPassword: oldPw, newPassword: newPw });
+      setOldPw(""); setNewPw(""); setConfirmPw("");
+      setPwSaved(true);
+      setTimeout(() => setPwSaved(false), 2500);
+    } catch (e) {
+      setPwError("Couldn't change your password. Check your current password and try again.");
+    } finally {
+      setPwSaving(false);
+    }
+  };
+
   return (
     <div className="p-8 max-w-xl mx-auto space-y-6">
       <div className="bg-card border border-border rounded-[14px] p-6" style={{ boxShadow: 'var(--card-shadow)' }}>
         <h3 className="font-semibold text-foreground mb-5 text-sm">Profile</h3>
         <div className="flex items-center gap-4 mb-6">
-          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-xl font-bold text-primary-foreground">M</div>
-          <div>
-            <div className="font-bold text-foreground">Maya Chen</div>
-            <div className="text-sm text-muted-foreground">maya.chen@example.com</div>
+          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-xl font-bold text-primary-foreground">
+            {fullName ? fullName[0] : "?"}
           </div>
+          <div>
+            <div className="font-bold text-foreground">{profileLoading ? "Loading..." : fullName}</div>
+            <div className="text-sm text-muted-foreground">{profileLoading ? "" : email}</div>
+          </div>
+          <Bdg label={role} v="info" />
           <button className="ml-auto text-xs text-primary border border-primary/30 px-3.5 py-2 rounded-xl hover:bg-primary/5 font-medium">Edit Photo</button>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          {[{ lbl: "Full Name", val: "Maya Chen" }, { lbl: "Email", val: "maya.chen@example.com" }].map(f => (
-            <div key={f.lbl}>
-              <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">{f.lbl}</label>
-              <input defaultValue={f.val} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground text-sm focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20" />
-            </div>
-          ))}
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Full Name</label>
+            <input
+              value={fullName} onChange={e => setFullName(e.target.value)}
+              disabled={profileLoading}
+              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground text-sm focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Email</label>
+            <input
+              value={email} onChange={e => setEmail(e.target.value)}
+              disabled={profileLoading}
+              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground text-sm focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+            />
+          </div>
         </div>
+        {profileError && <p className="text-xs text-destructive mb-3">{profileError}</p>}
+        {profileSaved && <p className="text-xs text-emerald-600 mb-3">Profile updated.</p>}
+        <button
+          onClick={handleSaveProfile}
+          disabled={profileLoading || profileSaving}
+          className="bg-primary hover:bg-primary/90 disabled:opacity-60 text-primary-foreground font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm"
+        >
+          {profileSaving ? "Saving..." : "Save Profile"}
+        </button>
+      </div>
+
+      {/* ── Change Password — M2 Day 2 requirement ── */}
+      <div className="bg-card border border-border rounded-[14px] p-6" style={{ boxShadow: 'var(--card-shadow)' }}>
+        <h3 className="font-semibold text-foreground mb-5 text-sm">Change Password</h3>
+        <div className="space-y-3 mb-4">
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Current Password</label>
+            <input
+              type="password" value={oldPw} onChange={e => setOldPw(e.target.value)}
+              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground text-sm focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">New Password</label>
+              <input
+                type="password" value={newPw} onChange={e => setNewPw(e.target.value)}
+                className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground text-sm focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">Minimum 6 characters</p>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Confirm New Password</label>
+              <input
+                type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
+                className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground text-sm focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+          </div>
+        </div>
+        {pwError && <p className="text-xs text-destructive mb-3">{pwError}</p>}
+        {pwSaved && <p className="text-xs text-emerald-600 mb-3">Password changed successfully.</p>}
+        <button
+          onClick={handleChangePassword}
+          disabled={pwSaving}
+          className="bg-primary hover:bg-primary/90 disabled:opacity-60 text-primary-foreground font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm"
+        >
+          {pwSaving ? "Updating..." : "Change Password"}
+        </button>
       </div>
 
       <div className="bg-card border border-border rounded-[14px] p-6 space-y-5" style={{ boxShadow: 'var(--card-shadow)' }}>
@@ -78,10 +211,6 @@ export default function SettingsScreen() {
           </div>
         ))}
       </div>
-
-      <button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3.5 rounded-xl transition-colors text-sm shadow-sm">
-        Save Changes
-      </button>
     </div>
   );
 }

@@ -103,6 +103,39 @@ export function logoutUser() {
   localStorage.removeItem("token");
   localStorage.removeItem("role");
 }
+// ⚠️ MILESTONE 2, UNCONFIRMED: these two endpoints are Intern 2's own Day 2
+// M2 task ("Update Profile API" + "Change Password API") — as of writing
+// this, it's unknown whether they exist on main yet or what their exact
+// path/shape is. Guessed at REST conventions (PATCH /auth/profile,
+// POST /auth/change-password) matching the existing /auth/* pattern.
+// MUST be re-verified against Intern 2's real code before flipping
+// USE_MOCKS off for these two specifically — don't assume this guess is
+// correct just because the rest of api.js has been careful about this.
+export async function updateProfile({ fullName, email }) {
+  if (USE_MOCKS) {
+    return delay({
+      user_id: "00000000-0000-0000-0000-000000000001",
+      full_name: fullName,
+      email,
+      roles: [localStorage.getItem("role") || "learner"],
+      created_at: new Date().toISOString(),
+    });
+  }
+  return request("/auth/profile", {
+    method: "PATCH",
+    body: JSON.stringify({ full_name: fullName, email }),
+  });
+}
+
+export async function changePassword({ oldPassword, newPassword }) {
+  if (USE_MOCKS) {
+    return delay({ message: "Password changed successfully." });
+  }
+  return request("/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+  });
+}
 
 // ── Courses / Lessons ────────────────────────────────────────────────────
 // ⚠️ PRODUCT GAP: as of 2026-07-19, Intern 2's backend has NO course-level
@@ -113,18 +146,30 @@ export function logoutUser() {
 // source to attach to. Flag this in stand-up before Day 7.
 export async function getCourses() {
   return delay([
-    { id: "1", title: "ASL Fundamentals", difficulty: "Beginner", lessons: 24,
-      desc: "Core signs, alphabet, and basic phrases.", hrs: "6 hrs", pct: 100, cat: "ASL" },
-    { id: "2", title: "ASL Intermediate", difficulty: "Intermediate", lessons: 32,
-      desc: "Emotions, questions, and sentence structure.", hrs: "9 hrs", pct: 68, cat: "ASL" },
-    { id: "3", title: "ASL Advanced Conversation", difficulty: "Advanced", lessons: 28,
-      desc: "Classifiers, complex grammar, and fluent ASL.", hrs: "12 hrs", pct: 0, cat: "ASL" },
-    { id: "4", title: "BSL Basics", difficulty: "Beginner", lessons: 20,
-      desc: "Introduction to British Sign Language.", hrs: "5 hrs", pct: 0, cat: "BSL" },
-    { id: "5", title: "Medical Sign Language", difficulty: "Intermediate", lessons: 18,
-      desc: "Healthcare vocabulary for clinical environments.", hrs: "4 hrs", pct: 12, cat: "Specialized" },
-    { id: "6", title: "Numbers & Math Signs", difficulty: "Beginner", lessons: 10,
-      desc: "Counting, arithmetic, and quantities.", hrs: "2 hrs", pct: 45, cat: "ASL" },
+    {
+      id: "1", title: "ASL Fundamentals", difficulty: "Beginner", lessons: 24,
+      desc: "Core signs, alphabet, and basic phrases.", hrs: "6 hrs", pct: 100, cat: "ASL"
+    },
+    {
+      id: "2", title: "ASL Intermediate", difficulty: "Intermediate", lessons: 32,
+      desc: "Emotions, questions, and sentence structure.", hrs: "9 hrs", pct: 68, cat: "ASL"
+    },
+    {
+      id: "3", title: "ASL Advanced Conversation", difficulty: "Advanced", lessons: 28,
+      desc: "Classifiers, complex grammar, and fluent ASL.", hrs: "12 hrs", pct: 0, cat: "ASL"
+    },
+    {
+      id: "4", title: "BSL Basics", difficulty: "Beginner", lessons: 20,
+      desc: "Introduction to British Sign Language.", hrs: "5 hrs", pct: 0, cat: "BSL"
+    },
+    {
+      id: "5", title: "Medical Sign Language", difficulty: "Intermediate", lessons: 18,
+      desc: "Healthcare vocabulary for clinical environments.", hrs: "4 hrs", pct: 12, cat: "Specialized"
+    },
+    {
+      id: "6", title: "Numbers & Math Signs", difficulty: "Beginner", lessons: 10,
+      desc: "Counting, arithmetic, and quantities.", hrs: "2 hrs", pct: 45, cat: "ASL"
+    },
   ]);
 }
 
@@ -135,10 +180,14 @@ export async function getCourseById(id) {
 export async function getLessons(moduleId) {
   if (USE_MOCKS) {
     return delay([
-      { lesson_id: 1, module_id: 1, title: "Letter A", description: "Introduction to the sign for A",
-        sequence_order: 1, difficulty_level: "beginner", is_published: true, created_at: new Date().toISOString() },
-      { lesson_id: 2, module_id: 1, title: "Letter B", description: "Introduction to the sign for B",
-        sequence_order: 2, difficulty_level: "beginner", is_published: true, created_at: new Date().toISOString() },
+      {
+        lesson_id: 1, module_id: 1, title: "Letter A", description: "Introduction to the sign for A",
+        sequence_order: 1, difficulty_level: "beginner", is_published: true, created_at: new Date().toISOString()
+      },
+      {
+        lesson_id: 2, module_id: 1, title: "Letter B", description: "Introduction to the sign for B",
+        sequence_order: 2, difficulty_level: "beginner", is_published: true, created_at: new Date().toISOString()
+      },
     ]);
   }
   // Confirmed via schemas/course.py: GET /courses/lessons (optional
@@ -151,8 +200,10 @@ export async function getLessons(moduleId) {
 
 export async function getLessonById(id) {
   if (USE_MOCKS) {
-    return delay({ lesson_id: id, module_id: 1, title: "Letter A", description: "Introduction to the sign for A",
-      sequence_order: 1, difficulty_level: "beginner", is_published: true, created_at: new Date().toISOString() });
+    return delay({
+      lesson_id: id, module_id: 1, title: "Letter A", description: "Introduction to the sign for A",
+      sequence_order: 1, difficulty_level: "beginner", is_published: true, created_at: new Date().toISOString()
+    });
   }
   // Confirmed: GET /courses/lessons/{lesson_id} -> LessonResponse
   return request(`/courses/lessons/${id}`);
