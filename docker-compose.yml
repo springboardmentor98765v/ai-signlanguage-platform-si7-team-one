@@ -1,0 +1,56 @@
+version: "3.9"
+
+services:
+
+  database:
+    image: postgres:16
+    container_name: signlanguage-db
+
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: sign_language_learning
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+  - postgres_data:/var/lib/postgresql/data
+  - ./Database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+  - ./Database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+
+  backend:
+    build:
+      context: ./backend_API
+
+    container_name: signlanguage-backend
+
+    restart: unless-stopped
+
+    depends_on:
+      - database
+
+    ports:
+      - "8000:8000"
+
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@database:5432/sign_language_learning
+
+  aiml:
+    build:
+      context: ./AIML_CV
+
+    container_name: signlanguage-ai
+
+    restart: unless-stopped
+
+    depends_on:
+      - backend
+
+    ports:
+      - "8001:8001"
+
+volumes:
+  postgres_data:
