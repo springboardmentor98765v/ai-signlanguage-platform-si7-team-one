@@ -11,6 +11,11 @@ import type { Screen } from "../lib/types";
 import { MCard } from "../components/shared/MCard";
 import { Bdg, PBar, Ring } from "../components/shared/Indicators";
 import { getDashboard } from "../services/aiApi";
+import { accuracyData, lessonsCompleted } from "../lib/mockData";
+import {
+  LineChart, Line, BarChart, Bar, ResponsiveContainer,
+  XAxis, YAxis, CartesianGrid, Tooltip,
+} from "recharts";
 
 interface RecentPrediction {
   prediction: string;
@@ -86,6 +91,36 @@ export default function LearnerDashboard({ go }: { go: (s: Screen) => void }) {
             <div className="text-sm font-semibold text-foreground">Module Progress</div>
             <div className="text-xs text-muted-foreground">Module 4 of 6</div>
           </div>
+        </div>
+      </div>
+
+      {/* ── M2 Day 3 — real chart library (Recharts), sample data for now
+          per the SRS checklist ("Graphs working with sample data for now"). ── */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-card border border-border rounded-xl p-5">
+          <h3 className="font-semibold text-foreground mb-4">Accuracy Over Time</h3>
+          <ResponsiveContainer width="100%" height={180}>
+            <LineChart data={accuracyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis dataKey="date" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={30} />
+              <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
+              <Line type="monotone" dataKey="accuracy" stroke="var(--primary)" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="bg-card border border-border rounded-xl p-5">
+          <h3 className="font-semibold text-foreground mb-4">Lessons Completed</h3>
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={lessonsCompleted}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis dataKey="week" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={30} />
+              <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
+              <Bar dataKey="count" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
 

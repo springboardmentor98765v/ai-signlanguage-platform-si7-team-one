@@ -14,6 +14,11 @@ export const weeklyTime = [
   { day: "Thu", min: 50 }, { day: "Fri", min: 35 }, { day: "Sat", min: 60 },
   { day: "Sun", min: 45 },
 ];
+// M2 Day 3 (Frontend) — "Lessons completed" bar graph on Learner Dashboard.
+export const lessonsCompleted = [
+  { week: "Wk 1", count: 4 }, { week: "Wk 2", count: 7 }, { week: "Wk 3", count: 5 },
+  { week: "Wk 4", count: 9 }, { week: "Wk 5", count: 6 }, { week: "Wk 6", count: 11 },
+];
 export const weakAreas = [
   { cat: "Numbers", v: 71 }, { cat: "Colors", v: 64 }, { cat: "Emotions", v: 78 },
   { cat: "Actions", v: 82 }, { cat: "Greetings", v: 94 }, { cat: "Questions", v: 69 },
