@@ -20,7 +20,8 @@ def generate_feedback(payload: FeedbackGenerateRequest):
         session_id=payload.session_id,
         assessment=assessment_out,
         expected_sign=payload.expected_sign,
-        last_breakdown=assessment.last_breakdown,  # from Day 2's scoring breakdown
+        last_breakdown=assessment.last_breakdown,
+        possible_issue=payload.possible_issue,  # NEW
     )
     return feedback_store.to_out(feedback)
 

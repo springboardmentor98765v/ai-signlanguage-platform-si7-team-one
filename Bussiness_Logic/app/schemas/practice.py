@@ -48,4 +48,7 @@ class AttemptResultOut(BaseModel):
     success: bool
     message: Optional[str] = None
     hold_seconds: Optional[float] = None
-    assessment: Optional[dict] = None# current session assessment, if success
+    gesture_quality: Optional[str] = None      # NEW
+    suggestion: Optional[str] = None           # NEW — possible_issue hint
+    confidence_level: Optional[str] = None     # NEW
+    assessment: Optional[dict] = None

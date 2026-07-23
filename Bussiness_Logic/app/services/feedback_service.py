@@ -87,13 +87,21 @@ def generate_feedback_items(
     assessment: AssessmentOut,
     expected_sign: Optional[str] = None,
     last_breakdown: Optional[dict] = None,
+    possible_issue: Optional[str] = None,
 ) -> List[FeedbackItem]:
     items: List[FeedbackItem] = []
     score = assessment.score
     accuracy = assessment.accuracy_percentage
     sign = expected_sign.upper() if expected_sign else None
     tips = SIGN_TIPS.get(sign, {}) if sign else {}
+    if possible_issue:
+        items.append(FeedbackItem(
+            feedback_type=FeedbackType.improvement,
+            message=f"AI detected a possible issue: {possible_issue}",
+            severity=Severity.medium,
+        ))
 
+    return items
     # ── 1. Primary score-based feedback ──────────────────────────────
     if score >= 85:
         items.append(FeedbackItem(
@@ -153,6 +161,7 @@ class InMemoryFeedbackStore:
         assessment: AssessmentOut,
         expected_sign: Optional[str] = None,
         last_breakdown: Optional[dict] = None,
+        possible_issue: Optional[str] = None,
     ) -> SessionFeedback:
         items = generate_feedback_items(assessment, expected_sign, last_breakdown)
         feedback = SessionFeedback(
