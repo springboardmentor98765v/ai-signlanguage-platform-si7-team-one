@@ -7,15 +7,66 @@ import {
   Download, Share2, AlertTriangle, CheckCircle, XCircle, Info,
   SkipForward, Calendar, Lock, Mail, Check, ChevronLeft,
 } from "lucide-react";
-import { PBar } from "../components/shared/Indicators";
+import { PBar, Ring } from "../components/shared/Indicators";
+import { Bdg } from "../components/shared/Indicators";
 
 export default function Certificates() {
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6">
+
+      {/* ── M2 Day 6: Progress Report — lessons completed, avg score, weak letters ── */}
+      <div className="bg-card border border-border rounded-[14px] p-6" style={{ boxShadow: 'var(--card-shadow)' }}>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-semibold text-foreground text-sm">Progress Report</h3>
+          <button className="flex items-center gap-1.5 bg-muted border border-border hover:bg-hover text-muted-foreground hover:text-foreground text-xs font-semibold px-3.5 py-2 rounded-xl transition-all">
+            <Download size={11} /> Export PDF
+          </button>
+        </div>
+        <div className="grid grid-cols-4 gap-4 mb-5">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-foreground">18</div>
+            <div className="text-xs text-muted-foreground">Lessons Completed</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-foreground">91%</div>
+            <div className="text-xs text-muted-foreground">Average Score</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-foreground">24h</div>
+            <div className="text-xs text-muted-foreground">Practice Time</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-foreground">14</div>
+            <div className="text-xs text-muted-foreground">Day Streak</div>
+          </div>
+        </div>
+        <div>
+          <div className="text-xs font-semibold text-muted-foreground mb-2.5">Weak Areas — needs more practice</div>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { letter: "R", acc: 61 }, { letter: "M", acc: 64 },
+              { letter: "N", acc: 67 }, { letter: "Q", acc: 69 },
+              { letter: "X", acc: 71 },
+            ].map(w => (
+              <div key={w.letter} className="flex items-center gap-2 bg-muted/50 border border-border rounded-xl px-3 py-2">
+                <div className="w-7 h-7 rounded-lg bg-rose-950/40 border border-rose-900/40 flex items-center justify-center text-xs font-bold text-rose-400">
+                  {w.letter}
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-foreground">Letter {w.letter}</div>
+                  <div className="text-[10px] text-rose-400">{w.acc}% accuracy</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Certificate cards (unchanged) ── */}
       <div className="grid grid-cols-3 gap-5">
         {[
-          { title: "ASL Fundamentals",  date: "May 12, 2026", score: 94, id: "CERT-2026-ASL-001" },
-          { title: "Numbers & Math",    date: "Jun 3, 2026",  score: 88, id: "CERT-2026-NUM-042" },
+          { title: "ASL Fundamentals", date: "May 12, 2026", score: 94, id: "CERT-2026-ASL-001" },
+          { title: "Numbers & Math",   date: "Jun 3, 2026",  score: 88, id: "CERT-2026-NUM-042" },
         ].map(cert => (
           <div key={cert.id} className="bg-card border border-border rounded-[14px] overflow-hidden" style={{ boxShadow: 'var(--card-shadow)' }}>
             <div className="bg-gradient-to-r from-primary/5 to-success/5 p-6 border-b border-border">
@@ -55,19 +106,19 @@ export default function Certificates() {
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-[14px]  p-6 " style={{ boxShadow: 'var(--card-shadow)' }}>
+      <div className="bg-card border border-border rounded-[14px] p-6" style={{ boxShadow: 'var(--card-shadow)' }}>
         <h3 className="font-semibold text-foreground mb-5 text-sm">Achievement Badges</h3>
         <div className="flex flex-wrap gap-3">
           {[
-            { lbl: "First Sign",   em: "🌟", earned: true },
-            { lbl: "Week Warrior", em: "🔥", earned: true },
-            { lbl: "Speed Signer", em: "⚡", earned: true },
-            { lbl: "Perfect Score",em: "🏆", earned: true },
-            { lbl: "100 Signs",    em: "💯", earned: true },
-            { lbl: "Month Master", em: "📅", earned: true },
-            { lbl: "Night Owl",    em: "🦉", earned: true },
-            { lbl: "Consistency",  em: "📈", earned: false },
-            { lbl: "ASL Expert",   em: "🎓", earned: false },
+            { lbl: "First Sign",    em: "🌟", earned: true },
+            { lbl: "Week Warrior",  em: "🔥", earned: true },
+            { lbl: "Speed Signer",  em: "⚡", earned: true },
+            { lbl: "Perfect Score", em: "🏆", earned: true },
+            { lbl: "100 Signs",     em: "💯", earned: true },
+            { lbl: "Month Master",  em: "📅", earned: true },
+            { lbl: "Night Owl",     em: "🦉", earned: true },
+            { lbl: "Consistency",   em: "📈", earned: false },
+            { lbl: "ASL Expert",    em: "🎓", earned: false },
           ].map(b => (
             <div key={b.lbl} className={`flex flex-col items-center gap-1.5 p-3 rounded-[14px] border w-20 ${b.earned ? "border-warning/30 bg-warning/5" : "border-border bg-muted opacity-40"}`}>
               <span className="text-2xl">{b.em}</span>
@@ -79,7 +130,3 @@ export default function Certificates() {
     </div>
   );
 }
-
-// ══════════════════════════════════════════════════════════════════════════
-// C. INSTRUCTOR SCREENS
-// ══════════════════════════════════════════════════════════════════════════
