@@ -2,7 +2,6 @@
 -- PostgreSQL database dump
 --
 
-\restrict LrGVT1hnyuVmSDG90gbHjVUyof37srtbOf0TDka2eJnAEiYZkkvJbecR2karPhq
 
 -- Dumped from database version 18.4
 -- Dumped by pg_dump version 18.4
@@ -2392,5 +2391,5 @@ ALTER TABLE ONLY public.weekly_analytics
 -- PostgreSQL database dump complete
 --
 
-\unrestrict LrGVT1hnyuVmSDG90gbHjVUyof37srtbOf0TDka2eJnAEiYZkkvJbecR2karPhq
+
 

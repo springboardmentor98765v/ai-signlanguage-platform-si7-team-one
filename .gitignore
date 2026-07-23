@@ -124,3 +124,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+Database/backups/*
+!Database/backups/.gitkeep

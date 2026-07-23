@@ -11,7 +11,7 @@ The goal of this milestone is to build a working end-to-end prototype that allow
 - Practice signs using a webcam
 - Receive AI-based sign predictions
 - Get assessment scores and feedback
-- Store practice data in PostgreSQL
+- Store practice data in PostgreSQL.
 
 ---
 
@@ -50,7 +50,7 @@ The goal of this milestone is to build a working end-to-end prototype that allow
 
 ## Database
 
-- PostgreSQL
+- PostgreSQL 18
 
 ## DevOps
 
@@ -71,7 +71,13 @@ ai-signlanguage-platform-si7-team-one/
 ├── Business_Logic/
 ├── Database/
 │   ├── schema.sql
-│   └── seed.sql
+│   ├── seed.sql
+│   ├── scripts/
+│   │   ├── backup_database.py
+│   │   └── restore_database.py
+│   ├── backups/
+│   └── docs/
+│       └── restore_guide.md
 ├── docker-compose.yml
 ├── README.md
 └── .github/
@@ -83,11 +89,12 @@ ai-signlanguage-platform-si7-team-one/
 
 # Prerequisites
 
-Before running the project, install:
+Install the following before running the project:
 
 - Git
 - Docker Desktop
-- Python 3.11 (optional for local development)
+- PostgreSQL 18
+- Python 3.11
 - VS Code (recommended)
 
 ---
@@ -104,18 +111,97 @@ cd ai-signlanguage-platform-si7-team-one
 
 # Database Configuration
 
-The project uses PostgreSQL.
-
-Default configuration:
+Database Name
 
 ```text
-Database : sign_language_learning
+sign_language_learning
+```
 
+Default PostgreSQL Configuration
+
+```text
+Host     : localhost
+Port     : 5432
 Username : postgres
-
 Password : postgres
+```
 
-Port : 5432
+---
+
+# Create Database
+
+Create a PostgreSQL database named:
+
+```text
+sign_language_learning
+```
+
+Example using psql:
+
+```sql
+CREATE DATABASE sign_language_learning;
+```
+
+---
+
+# Create Database Schema
+
+Execute:
+
+```bash
+psql -U postgres -d sign_language_learning -f Database/schema.sql
+```
+
+This creates all database tables, constraints, indexes, and relationships.
+
+---
+
+# Seed Initial Data
+
+Execute:
+
+```bash
+psql -U postgres -d sign_language_learning -f Database/seed.sql
+```
+
+This inserts the initial application data.
+
+---
+
+# Database Backup
+
+Run:
+
+```bash
+cd Database
+
+python scripts/backup_database.py
+```
+
+The generated backup will be stored in:
+
+```text
+Database/backups/
+```
+
+---
+
+# Database Restore
+
+Run:
+
+```bash
+cd Database
+
+python scripts/restore_database.py
+```
+
+This restores the database schema from `schema.sql`.
+
+For complete instructions, refer to:
+
+```text
+Database/docs/restore_guide.md
 ```
 
 ---
@@ -128,7 +214,7 @@ After all project modules are available:
 docker compose up --build
 ```
 
-To stop all containers:
+To stop all services:
 
 ```bash
 docker compose down
@@ -142,7 +228,7 @@ docker compose down
 |----------|------|
 | PostgreSQL | 5432 |
 | Backend API | 8000 |
-| AI Prediction Service | 8001 |
+| AI Service | 8001 |
 | Frontend | 5173 |
 
 ---
@@ -158,13 +244,13 @@ Example branches:
 - backend-aashi
 - abhinaya-aiml-cv
 
-Each intern develops in an individual feature branch before merging into the main branch.
+Each intern develops in an individual feature branch before creating a Pull Request and merging into the `main` branch.
 
 ---
 
 # Continuous Integration
 
-GitHub Actions is configured to perform a basic Continuous Integration (CI) check whenever code is pushed or a pull request is created.
+GitHub Actions performs a basic Continuous Integration (CI) check whenever code is pushed or a Pull Request is created.
 
 Workflow location:
 
@@ -176,7 +262,7 @@ Workflow location:
 
 # Milestone 1 Status
 
-The project is designed to provide:
+The project provides:
 
 - User Authentication
 - Lesson Management
@@ -190,7 +276,9 @@ The project is designed to provide:
 
 # Notes
 
-The complete system requires contributions from all team members. Full integration and end-to-end execution are performed after all feature branches have been merged.
+- Database schema is maintained by Intern 5.
+- Backup and restore utilities are included for database maintenance.
+- Full end-to-end execution requires contributions from all team members after merging all feature branches.
 
 ---
 
@@ -198,5 +286,6 @@ The complete system requires contributions from all team members. Full integrati
 
 Prepared as part of **Milestone 1** for the AI-Powered Sign Language Learning & Assessment Platform.
 
-Database & DevOps:
+**Database & DevOps**
+
 Intern 5
