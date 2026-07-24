@@ -28,16 +28,46 @@ type AttemptResult = {
   };
 };
 
-// Placeholder lesson id — Practice's route (/practice) doesn't carry a real
-// lesson id yet (same known gap as LessonView). Swap for a real id once
-// lesson selection flows through routing/context.
 const PLACEHOLDER_LESSON_ID = 1;
+const MAX_ATTEMPTS = 5;
+
+// M2 Day 7: expanded sign list — full A-Z alphabet + common words.
+// Intern 3's model currently covers A-Z; words section can be enabled
+// once the model supports them (uncomment below when ready).
+const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+const WORDS = ["Hello", "Thank you", "Please", "Yes", "No"];
+const ALL_SIGNS = [...ALPHABET, ...WORDS];
 
 export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
   const { userId } = useAuth();
-  const [attempts, setAttempts] = useState(0);
   const [sign, setSign] = useState("A");
-  const SIGNS = ["A", "B", "C", "D", "E"];
+  const [category, setCategory] = useState<"alphabet" | "words">("alphabet");
+  const [attempts, setAttempts] = useState(0);
+
+  // ── M2 Day 7: Timer ──────────────────────────────────────────────────
+  const [timerActive, setTimerActive] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startTimer = () => {
+    setElapsed(0);
+    setTimerActive(true);
+  };
+  const stopTimer = () => {
+    setTimerActive(false);
+    if (timerRef.current) clearInterval(timerRef.current);
+  };
+
+  useEffect(() => {
+    if (timerActive) {
+      timerRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [timerActive]);
+
+  const fmtTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -50,7 +80,6 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
   const [sessionError, setSessionError] = useState<string | null>(null);
   const holdStartedAt = useRef<string | null>(null);
 
-  // Real webcam feed via getUserMedia.
   useEffect(() => {
     let stream: MediaStream | null = null;
     navigator.mediaDevices
@@ -60,15 +89,13 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
         if (videoRef.current) {
           videoRef.current.srcObject = s;
           setCameraReady(true);
+          startTimer();
         }
       })
       .catch(() => setCameraError("Couldn't access your camera. Check permissions and try again."));
-    return () => stream?.getTracks().forEach(t => t.stop());
+    return () => { stream?.getTracks().forEach(t => t.stop()); stopTimer(); };
   }, []);
 
-  // Start a real practice session as soon as we know who the learner is.
-  // Falls back to a mock UUID if not logged in with a real user_id yet
-  // (e.g. came through the signup/onboarding mock flow).
   useEffect(() => {
     const uid = userId ?? "00000000-0000-0000-0000-000000000000";
     startPracticeSession(uid, PLACEHOLDER_LESSON_ID)
@@ -81,10 +108,6 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
     holdStartedAt.current = new Date().toISOString();
   }, []);
 
-  // Capture the current frame and submit it as a real attempt — this goes
-  // through Business Logic's /practice/{session_id}/attempt, which calls
-  // the AI service internally AND records the assessment, unlike calling
-  // the AI service directly (which would skip scoring entirely).
   const handleCapture = async () => {
     if (!videoRef.current || !canvasRef.current || !sessionId) return;
     setCapturing(true);
@@ -115,9 +138,19 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
     }, "image/jpeg", 0.9);
   };
 
+  const handleSignChange = (s: string) => {
+    setSign(s);
+    setResult(null);
+    setAttempts(0);
+    setElapsed(0);
+    holdStartedAt.current = new Date().toISOString();
+    localStorage.setItem("current_expected_sign", s);
+  };
+
   const acc = result?.assessment?.accuracy_percentage ?? null;
   const confCol = acc == null ? "bg-[#1a2844]" : acc >= 80 ? "bg-emerald-500" : acc >= 60 ? "bg-amber-500" : "bg-rose-500";
   const confTxt = acc == null ? "text-muted-foreground" : acc >= 80 ? "text-emerald-400" : acc >= 60 ? "text-amber-400" : "text-rose-400";
+  const currentSigns = category === "alphabet" ? ALPHABET : WORDS;
 
   return (
     <div className="h-full bg-[#060b13] flex flex-col overflow-hidden">
@@ -135,10 +168,7 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
 
           {!cameraReady && !cameraError && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="relative">
-                <div className="absolute inset-0 -m-12 bg-cyan-500/3 rounded-full blur-3xl" />
-                <HandOverlay w={320} h={390} animated />
-              </div>
+              <HandOverlay w={320} h={390} animated />
             </div>
           )}
 
@@ -155,13 +185,29 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
             </div>
           )}
 
+          {/* Camera status */}
           <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-full">
             <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${cameraReady ? "bg-emerald-400" : "bg-muted-foreground"}`} />
             <span className="text-xs text-muted-foreground">{cameraReady ? "Camera live" : "Connecting..."}</span>
           </div>
 
-          <div className="absolute top-4 right-4 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs text-muted-foreground">
-            Attempt {attempts} / 5
+          {/* M2 Day 7: Timer */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-full">
+            <Clock size={11} className="text-muted-foreground" />
+            <span className="text-xs text-muted-foreground font-mono">{fmtTime(elapsed)}</span>
+          </div>
+
+          {/* M2 Day 7: Attempt progress bar */}
+          <div className="absolute top-4 right-4 flex flex-col items-end gap-1">
+            <span className="text-xs text-muted-foreground bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-full">
+              Attempt {attempts} / {MAX_ATTEMPTS}
+            </span>
+            <div className="w-28 h-1.5 bg-black/40 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-300"
+                style={{ width: `${(attempts / MAX_ATTEMPTS) * 100}%` }}
+              />
+            </div>
           </div>
 
           {result && (
@@ -176,7 +222,7 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
 
           <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-3">
             <button
-              onClick={() => setResult(null)}
+              onClick={() => { setResult(null); setAttempts(0); setElapsed(0); }}
               className="flex items-center gap-2 bg-[#0e1a30]/80 backdrop-blur border border-border hover:border-cyan-900/40 text-foreground px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
             >
               <RotateCcw size={15} />
@@ -184,11 +230,11 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
             </button>
             <button
               onClick={handleCapture}
-              disabled={!cameraReady || !sessionId || capturing}
-              className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed text-black px-6 py-2.5 rounded-xl text-sm font-bold transition-colors"
+              disabled={!cameraReady || !sessionId || capturing || attempts >= MAX_ATTEMPTS}
+              className="flex items-center gap-2 bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-primary-foreground px-6 py-2.5 rounded-xl text-sm font-bold transition-colors"
             >
               {capturing ? <Loader2 size={15} className="animate-spin" /> : <Camera size={15} />}
-              {capturing ? "Analyzing..." : "Capture & Predict"}
+              {capturing ? "Analyzing..." : attempts >= MAX_ATTEMPTS ? "Max attempts reached" : "Capture & Predict"}
             </button>
             <button
               onClick={() => go("feedback")}
@@ -202,14 +248,14 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
         </div>
 
         {/* Right panel */}
-        <div className="w-68 flex-shrink-0 border-l border-border bg-[#0a1425] flex flex-col p-4 gap-4 overflow-y-auto" style={{ width: "272px" }}>
+        <div className="flex-shrink-0 border-l border-border bg-[#0a1425] flex flex-col p-4 gap-4 overflow-y-auto" style={{ width: "272px" }}>
           <div>
             <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Target Sign</div>
             <div className="text-3xl font-bold text-foreground leading-none mb-1">{sign}</div>
             <div className="text-xs text-muted-foreground">Lesson 3 · Alphabet</div>
           </div>
 
-          <div className="bg-[#0d1625] border border-border rounded-xl overflow-hidden relative">
+          <div className="bg-[#0d1625] border border-border rounded-xl overflow-hidden">
             <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider p-2.5 pb-0">Reference</div>
             <div className="flex items-center justify-center py-2">
               <HandOverlay w={120} h={140} animated={false} />
@@ -241,14 +287,31 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
             </div>
           )}
 
+          {/* M2 Day 7: Expanded sign picker with category tabs */}
           <div className="mt-auto">
-            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Signs in Set</div>
-            <div className="flex flex-wrap gap-1.5">
-              {SIGNS.map(s => (
+            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Pick a Sign</div>
+            <div className="flex gap-1.5 mb-2.5">
+              {(["alphabet", "words"] as const).map(cat => (
                 <button
-                  key={s} onClick={() => { setSign(s); setResult(null); }}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                    s === sign ? "bg-cyan-500 text-black" : "bg-[#0e1a30] text-muted-foreground border border-border hover:text-foreground"
+                  key={cat}
+                  onClick={() => { setCategory(cat); handleSignChange(cat === "alphabet" ? "A" : "Hello"); }}
+                  className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold capitalize transition-all ${
+                    category === cat ? "bg-primary text-primary-foreground" : "bg-[#0e1a30] text-muted-foreground border border-border hover:text-foreground"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {currentSigns.map(s => (
+                <button
+                  key={s}
+                  onClick={() => handleSignChange(s)}
+                  className={`px-2 py-1 rounded-lg text-[10px] font-semibold transition-all ${
+                    s === sign
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-[#0e1a30] text-muted-foreground border border-border hover:text-foreground"
                   }`}
                 >
                   {s}
