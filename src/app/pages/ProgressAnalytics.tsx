@@ -37,7 +37,7 @@ export default function ProgressAnalytics() {
   }, []);
 
   return (
-    <div className="p-6 space-y-5 max-w-6xl mx-auto">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-5 max-w-6xl mx-auto">
       {/* ── REAL DATA — from Intern 3's AI service /analytics endpoint. ──
           Session-only: resets whenever the AI service restarts, since
           history is stored in-memory, not a database. */}
@@ -51,7 +51,7 @@ export default function ProgressAnalytics() {
           <p className="text-xs text-rose-400">Couldn't reach the AI service — is it running on port 8001?</p>
         )}
         {!loading && !error && ai && (
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <div className="text-2xl font-bold text-foreground">{ai.total_predictions}</div>
               <div className="text-xs text-muted-foreground">Predictions this session</div>
@@ -76,15 +76,15 @@ export default function ProgressAnalytics() {
           time-series accuracy, per-category breakdown, weekly practice
           time, or a practice calendar. Kept as illustrative mock until
           Business Logic's Analytics service (now on main) is wired in. ── */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MCard icon={TrendingUp} label="Avg Accuracy (30d)" value="84%" delta="+11% vs last month" col="cyan" />
         <MCard icon={Target}     label="Signs Mastered"      value="142" delta="of 248 learned"     col="emerald" />
         <MCard icon={Clock}      label="Practice Time"       value="31.4h" delta="this month"       col="violet" />
         <MCard icon={Zap}        label="Current Streak"      value="14 days" delta="Best: 21 days"  col="amber" />
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="col-span-2 bg-card border border-border rounded-xl p-5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="md:col-span-2 bg-card border border-border rounded-xl p-5">
           <h3 className="font-semibold text-foreground mb-4 text-sm">Accuracy Over Time</h3>
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={accuracyData}>
@@ -116,7 +116,7 @@ export default function ProgressAnalytics() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-card border border-border rounded-xl p-5">
           <h3 className="font-semibold text-foreground mb-4 text-sm">Accuracy by Category</h3>
           <div className="space-y-3">

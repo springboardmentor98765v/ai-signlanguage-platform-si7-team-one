@@ -59,10 +59,10 @@ export default function FeedbackScreen({ go }: { go: (s: Screen) => void }) {
                       <CheckCircle size={13} className="text-emerald-400" />;
 
   return (
-    <div className="p-5 max-w-5xl mx-auto space-y-4">
+    <div className="p-4 md:p-5 max-w-5xl mx-auto space-y-4">
       <FlowStepper active={3} />
 
-      <div className="bg-card border border-border rounded-xl p-5 flex items-center gap-5">
+      <div className="bg-card border border-border rounded-xl p-5 flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-5">
         <Ring pct={assessment?.accuracy_percentage ?? 0} size={88} />
         <div>
           <h2 className="text-lg font-bold text-foreground">
@@ -87,7 +87,7 @@ export default function FeedbackScreen({ go }: { go: (s: Screen) => void }) {
           <p className="text-xs text-muted-foreground">No feedback items generated yet.</p>
         )}
         {!loading && items.length > 0 && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {items.map((item, i) => (
               <div key={i} className={`p-3 rounded-lg border ${severityStyle(item.severity)}`}>
                 <div className="flex items-center gap-1.5 mb-1">

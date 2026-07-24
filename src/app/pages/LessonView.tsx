@@ -36,8 +36,8 @@ export default function LessonView({ go }: { go: (s: Screen) => void }) {
     { id: 6, title: "Module Quiz",               done: false },
   ];
   return (
-    <div className="flex h-full overflow-hidden">
-      <div className="w-56 border-r border-border bg-[#0a1425] flex flex-col p-3 flex-shrink-0">
+    <div className="flex flex-col md:flex-row h-full overflow-hidden">
+      <div className="w-full md:w-56 border-b md:border-b-0 md:border-r border-border bg-[#0a1425] flex flex-col md:p-3 p-3 flex-shrink-0">
         <div className="mb-4 px-1">
           <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Module 4</div>
           <div className="font-semibold text-foreground text-sm">Emotions & Mental States</div>
@@ -94,7 +94,7 @@ export default function LessonView({ go }: { go: (s: Screen) => void }) {
             In this lesson we explore three powerful emotional signs — FEAR, SURPRISE, and DISGUST. These signs rely heavily on facial expression, which carries as much meaning as the hand shape itself in ASL.
           </p>
 
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             {["FEAR", "SURPRISE", "DISGUST"].map(sign => (
               <div key={sign} className="bg-[#0e1a30] border border-border rounded-lg p-4 text-center">
                 <div className="w-14 h-14 mx-auto mb-3 flex items-center justify-center overflow-hidden">

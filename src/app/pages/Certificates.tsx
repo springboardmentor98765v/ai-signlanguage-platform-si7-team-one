@@ -12,7 +12,7 @@ import { Bdg } from "../components/shared/Indicators";
 
 export default function Certificates() {
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
 
       {/* ── M2 Day 6: Progress Report — lessons completed, avg score, weak letters ── */}
       <div className="bg-card border border-border rounded-[14px] p-6" style={{ boxShadow: 'var(--card-shadow)' }}>
@@ -22,7 +22,7 @@ export default function Certificates() {
             <Download size={11} /> Export PDF
           </button>
         </div>
-        <div className="grid grid-cols-4 gap-4 mb-5">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
           <div className="text-center">
             <div className="text-2xl font-bold text-foreground">18</div>
             <div className="text-xs text-muted-foreground">Lessons Completed</div>
@@ -63,7 +63,7 @@ export default function Certificates() {
       </div>
 
       {/* ── Certificate cards (unchanged) ── */}
-      <div className="grid grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
         {[
           { title: "ASL Fundamentals", date: "May 12, 2026", score: 94, id: "CERT-2026-ASL-001" },
           { title: "Numbers & Math",   date: "Jun 3, 2026",  score: 88, id: "CERT-2026-NUM-042" },

@@ -67,15 +67,15 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="p-8 space-y-8 max-w-7xl mx-auto">
-      <div className="grid grid-cols-4 gap-5">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8 max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
         <MCard icon={Users}       label="Active Users"         value="2,847" delta="+107 this month"    col="cyan" />
         <MCard icon={TrendingUp}  label="Completion Rate"      value="73%"   delta="+4% vs last month"  col="emerald" />
         <MCard icon={Activity}    label="AI Predictions Today" value="14.2k" delta="98.7% accurate"     col="violet" />
         <MCard icon={Server}      label="System Health"        value="99.8%" delta="All services nominal" col="emerald" />
       </div>
 
-      <div className="grid grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
         <div className="bg-card border border-border rounded-[14px] p-6" style={{ boxShadow: 'var(--card-shadow)' }}>
           <h3 className="font-semibold text-foreground mb-5 text-sm">Platform Growth</h3>
           <ResponsiveContainer width="100%" height={220}>

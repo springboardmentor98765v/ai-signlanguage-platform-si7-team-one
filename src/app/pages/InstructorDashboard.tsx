@@ -28,8 +28,8 @@ export default function InstructorDashboard({ go }: { go: (s: Screen) => void })
   );
 
   return (
-    <div className="p-8 space-y-8 max-w-7xl mx-auto">
-      <div className="grid grid-cols-4 gap-5">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8 max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
         <MCard icon={Users}         label="Total Students"    value="24"  delta="3 new this week"  col="cyan" />
         <MCard icon={TrendingUp}    label="Avg Class Progress" value="67%" delta="+5% vs last week" col="emerald" />
         <MCard icon={AlertTriangle} label="At-Risk Students"  value="4"   delta="need attention"   col="amber" />
@@ -37,7 +37,7 @@ export default function InstructorDashboard({ go }: { go: (s: Screen) => void })
       </div>
 
       <div className="bg-card border border-border rounded-[14px] p-6" style={{ boxShadow: 'var(--card-shadow)' }}>
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-3">
           <h3 className="font-semibold text-foreground text-sm">Student Overview</h3>
           <div className="flex gap-2.5 items-center">
             <div className="relative">
@@ -72,11 +72,13 @@ export default function InstructorDashboard({ go }: { go: (s: Screen) => void })
               <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/70 to-primary/40 flex items-center justify-center text-xs font-bold text-primary-foreground flex-shrink-0">
                 {s.name.charAt(0)}
               </div>
-              <div className="w-32 flex-shrink-0">
+              <div className="hidden sm:block w-32 flex-shrink-0">
                 <div className="text-sm font-semibold text-foreground">{s.name}</div>
                 <div className="text-xs text-muted-foreground">{s.last}</div>
               </div>
               <div className="flex-1 min-w-0">
+                <div className="sm:hidden text-sm font-semibold text-foreground">{s.name}</div>
+                <div className="sm:hidden text-xs text-muted-foreground mb-1.5">{s.last}</div>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs text-muted-foreground">Progress</span>
                   <span className="text-xs font-semibold text-foreground">{s.pct}%</span>

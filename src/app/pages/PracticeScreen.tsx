@@ -248,7 +248,7 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
         </div>
 
         {/* Right panel */}
-        <div className="flex-shrink-0 border-l border-border bg-[#0a1425] flex flex-col p-4 gap-4 overflow-y-auto" style={{ width: "272px" }}>
+        <div className="hidden md:flex flex-shrink-0 border-l border-border bg-[#0a1425] flex-col p-4 gap-4 overflow-y-auto" style={{ width: "272px" }}>
           <div>
             <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Target Sign</div>
             <div className="text-3xl font-bold text-foreground leading-none mb-1">{sign}</div>
