@@ -9,6 +9,7 @@ class LessonCreate(BaseModel):
     sequence_order: int
     estimated_duration_minutes: int | None = None
     difficulty_level: str = "beginner"
+    category: str = "Alphabet"
     is_published: bool = False
 
 
@@ -19,6 +20,7 @@ class LessonResponse(BaseModel):
     description: str | None
     sequence_order: int
     difficulty_level: str
+    category: str
     is_published: bool
     created_at: datetime
 

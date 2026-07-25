@@ -48,6 +48,7 @@ class Lesson(Base):
     sequence_order: Mapped[int] = mapped_column(Integer, nullable=False)
     estimated_duration_minutes: Mapped[int | None] = mapped_column(Integer)
     difficulty_level: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'beginner'"))
+    category: Mapped[str] = mapped_column(String(50), nullable=False, server_default=text("'Alphabet'"))
     is_published: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False

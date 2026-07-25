@@ -5,5 +5,8 @@ from app.models.user_role import UserRole
 from app.models.sign_language import SignLanguage
 from app.models.module import Module
 from app.models.lesson import Lesson
+from app.models.instructor_student import InstructorStudent
+from app.models.refresh_token import RefreshToken
 
-__all__ = ["Base", "User", "Role", "UserRole", "SignLanguage", "Module", "Lesson"]
+
+__all__ = ["Base", "User", "Role", "UserRole", "SignLanguage", "Module", "Lesson", "InstructorStudent","RefreshToken"]

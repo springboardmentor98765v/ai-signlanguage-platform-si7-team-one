@@ -9,17 +9,24 @@ from app.core.security import require_role
 router = APIRouter(prefix="/courses", tags=["Courses"])
 
 
-@router.get(
-    "/lessons",
-    response_model=list[LessonResponse],
-    summary="List all published lessons",
-    description="Public endpoint. Optionally filter by module_id.",
-)
-def list_lessons(module_id: int | None = None, db: Session = Depends(get_db)):
+@router.get("/lessons", response_model=list[LessonResponse])
+def list_lessons(
+    module_id: int | None = None,
+    category: str | None = None,
+    search: str | None = None,
+    page: int = 1,
+    page_size: int = 10,
+    db: Session = Depends(get_db),
+):
     query = db.query(Lesson).filter(Lesson.is_published.is_(True))
     if module_id:
         query = query.filter(Lesson.module_id == module_id)
-    return query.order_by(Lesson.sequence_order).all()
+    if category:
+        query = query.filter(Lesson.category == category)
+    if search:
+        query = query.filter(Lesson.title.ilike(f"%{search}%"))
+    offset = (page - 1) * page_size
+    return query.order_by(Lesson.sequence_order).offset(offset).limit(page_size).all()
 
 
 @router.get(
@@ -68,22 +75,24 @@ def delete_lesson(
     db.delete(lesson)
     db.commit()
 
-    
-
-
-
-@router.get("/lessons", response_model=list[LessonResponse])
-def list_lessons(
-    module_id: int | None = None,
-    search: str | None = None,
-    page: int = 1,
-    page_size: int = 10,
+@router.put(
+    "/lessons/{lesson_id}",
+    response_model=LessonResponse,
+    summary="Update a lesson (admin/instructor only)",
+)
+def update_lesson(
+    lesson_id: int,
+    payload: LessonCreate,
     db: Session = Depends(get_db),
+    _: object = Depends(require_role("admin", "instructor")),
 ):
-    query = db.query(Lesson).filter(Lesson.is_published.is_(True))
-    if module_id:
-        query = query.filter(Lesson.module_id == module_id)
-    if search:
-        query = query.filter(Lesson.title.ilike(f"%{search}%"))
-    offset = (page - 1) * page_size
-    return query.order_by(Lesson.sequence_order).offset(offset).limit(page_size).all()
+    lesson = db.query(Lesson).filter(Lesson.lesson_id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    for field, value in payload.model_dump().items():
+        setattr(lesson, field, value)
+
+    db.commit()
+    db.refresh(lesson)
+    return lesson

@@ -11,6 +11,12 @@ from app.core.config import settings
 from app.database.session import get_db
 from app.models.user import User
 
+#add refresh token helpers: M2
+import hashlib
+import secrets
+from datetime import timedelta
+
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = HTTPBearer()
 
@@ -74,3 +80,17 @@ def require_role(*allowed_roles: str):
             )
         return current_user
     return role_checker
+
+#M2
+REFRESH_TOKEN_EXPIRE_DAYS = 30
+
+
+def generate_refresh_token() -> tuple[str, str]:
+    """Returns (raw_token_to_send_to_client, hash_to_store_in_db)"""
+    raw_token = secrets.token_urlsafe(48)
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    return raw_token, token_hash
+
+
+def hash_refresh_token(raw_token: str) -> str:
+    return hashlib.sha256(raw_token.encode()).hexdigest()
