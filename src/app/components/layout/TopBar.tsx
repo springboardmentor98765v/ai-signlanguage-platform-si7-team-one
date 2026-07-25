@@ -25,7 +25,8 @@ export function TopBar({
       </div>
       <button
         onClick={onLogout}
-        className="text-muted-foreground hover:text-foreground transition-colors p-2 rounded-lg hover:bg-hover"
+        aria-label="Log out"
+        className="text-muted-foreground hover:text-foreground transition-colors"
       >
         <LogOut size={16} strokeWidth={1.5} />
       </button>

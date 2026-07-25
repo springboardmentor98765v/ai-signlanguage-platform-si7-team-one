@@ -220,10 +220,10 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
             </div>
           )}
 
-          <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-3">
+          <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-1.5 px-2 md:gap-3 md:px-0">
             <button
               onClick={() => { setResult(null); setAttempts(0); setElapsed(0); }}
-              className="flex items-center gap-2 bg-[#0e1a30]/80 backdrop-blur border border-border hover:border-cyan-900/40 text-foreground px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
+              className="flex items-center gap-1.5 bg-[#0e1a30]/80 backdrop-blur border border-border hover:border-cyan-900/40 text-foreground px-3 py-2.5 md:px-5 rounded-xl text-xs md:text-sm font-semibold transition-all"
             >
               <RotateCcw size={15} />
               Try Again
@@ -231,7 +231,7 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
             <button
               onClick={handleCapture}
               disabled={!cameraReady || !sessionId || capturing || attempts >= MAX_ATTEMPTS}
-              className="flex items-center gap-2 bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-primary-foreground px-6 py-2.5 rounded-xl text-sm font-bold transition-colors"
+              className="flex items-center gap-1.5 bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-primary-foreground px-4 py-2.5 md:px-6 rounded-xl text-xs md:text-sm font-bold transition-colors"
             >
               {capturing ? <Loader2 size={15} className="animate-spin" /> : <Camera size={15} />}
               {capturing ? "Analyzing..." : attempts >= MAX_ATTEMPTS ? "Max attempts reached" : "Capture & Predict"}
@@ -239,7 +239,7 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
             <button
               onClick={() => go("feedback")}
               disabled={!sessionId}
-              className="flex items-center gap-2 bg-[#0e1a30]/80 backdrop-blur border border-border hover:border-cyan-900/40 text-foreground px-5 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-60"
+              className="flex items-center gap-1.5 bg-[#0e1a30]/80 backdrop-blur border border-border hover:border-cyan-900/40 text-foreground px-3 py-2.5 md:px-5 rounded-xl text-xs md:text-sm font-semibold transition-all disabled:opacity-60"
             >
               <SkipForward size={15} />
               Get Feedback

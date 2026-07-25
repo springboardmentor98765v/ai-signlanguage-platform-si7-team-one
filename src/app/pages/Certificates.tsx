@@ -88,7 +88,10 @@ export default function Certificates() {
                 <button className="flex-1 flex items-center justify-center gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold py-2.5 rounded-xl transition-colors">
                   <Download size={11} /> Download
                 </button>
-                <button className="flex items-center justify-center bg-muted border border-border hover:bg-hover text-muted-foreground hover:text-foreground text-xs py-2.5 px-3 rounded-xl transition-all">
+                <button
+                  aria-label="Share certificate"
+                  className="flex items-center justify-center bg-muted border border-border hover:bg-hover text-muted-foreground hover:text-foreground text-xs py-2.5 px-3 rounded-xl transition-all"
+                >
                   <Share2 size={11} />
                 </button>
               </div>
