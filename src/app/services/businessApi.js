@@ -6,7 +6,7 @@
 // No auth on this service currently — same caveat as the AI service.
 
 const BUSINESS_BASE_URL = "http://127.0.0.1:8002";
-export const BUSINESS_USE_MOCKS = true; // flip to false once running locally
+export const BUSINESS_USE_MOCKS = false; // flip to false once running locally
 
 const delay = (v) => new Promise((r) => setTimeout(() => r(v), 300));
 
@@ -130,4 +130,127 @@ export async function getFeedback(sessionId) {
     });
   }
   return businessRequest(`/feedback/${sessionId}`);
+}
+// ── Analytics (M2 Day 9) ──────────────────────────────────────────────────
+// Confirmed: GET /analytics/{user_id} -> AnalyticsOut
+// { user_id, total_sessions, lessons_completed, average_accuracy, weak_signs[] }
+export async function getUserAnalytics(userId) {
+  if (BUSINESS_USE_MOCKS) {
+    return delay({
+      user_id: userId,
+      total_sessions: 24,
+      lessons_completed: 18,
+      average_accuracy: 0.91,
+      weak_signs: ["R", "M", "N", "Q", "X"],
+    });
+  }
+  return businessRequest(`/analytics/${userId}`);
+}
+
+// Confirmed: GET /analytics/{user_id}/weekly -> WeeklyAnalyticsOut
+// { user_id, weeks: [{ week_label, sessions_count, average_accuracy, weak_signs }],
+//   improvement_rate, current_week_accuracy, previous_week_accuracy }
+export async function getWeeklyAnalytics(userId) {
+  if (BUSINESS_USE_MOCKS) {
+    return delay({
+      user_id: userId,
+      weeks: [
+        { week_label: "Wk 1", sessions_count: 3, average_accuracy: 0.72, weak_signs: ["R", "X"] },
+        { week_label: "Wk 2", sessions_count: 4, average_accuracy: 0.78, weak_signs: ["M", "N"] },
+        { week_label: "Wk 3", sessions_count: 5, average_accuracy: 0.83, weak_signs: ["Q"] },
+        { week_label: "Wk 4", sessions_count: 6, average_accuracy: 0.88, weak_signs: [] },
+        { week_label: "Wk 5", sessions_count: 4, average_accuracy: 0.91, weak_signs: [] },
+      ],
+      improvement_rate: 0.19,
+      current_week_accuracy: 0.91,
+      previous_week_accuracy: 0.88,
+    });
+  }
+  return businessRequest(`/analytics/${userId}/weekly`);
+}
+
+// ── Progress Report (M2 Day 9) ────────────────────────────────────────────
+// Confirmed: GET /progress/{user_id} -> ProgressReportOut
+// { total_sessions, completed_sessions, total_practice_time_seconds,
+//   average_accuracy, grade, distinct_signs_practiced, weak_signs[],
+//   strong_signs[], current_week_accuracy, improvement_rate,
+//   recommended_for_practice[], certificate_eligible, certificate_reasons_failed[] }
+export async function getProgressReport(userId) {
+  if (BUSINESS_USE_MOCKS) {
+    return delay({
+      user_id: userId,
+      generated_at: new Date().toISOString(),
+      total_sessions: 24,
+      completed_sessions: 21,
+      total_practice_time_seconds: 86400,
+      average_accuracy: 0.91,
+      grade: "A",
+      distinct_signs_practiced: 18,
+      weak_signs: ["R", "M", "N", "Q", "X"],
+      strong_signs: ["A", "B", "C", "D", "E", "L", "Y"],
+      current_week_accuracy: 0.91,
+      improvement_rate: 0.19,
+      recommended_for_practice: ["R", "M", "N"],
+      certificate_eligible: false,
+      certificate_reasons_failed: ["Average accuracy below 80% for letters R, M, N"],
+    });
+  }
+  return businessRequest(`/progress/${userId}`);
+}
+
+// POST /progress/{user_id}/pdf — downloads a PDF progress report.
+// Returns raw PDF bytes; caller creates an object URL and triggers download.
+export async function downloadProgressPDF(userId, learnerName) {
+  if (BUSINESS_USE_MOCKS) {
+    // Can't generate a real PDF in mock mode — just resolve silently.
+    return delay(null);
+  }
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${BUSINESS_BASE_URL}/progress/${userId}/pdf`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ learner_name: learnerName }),
+  });
+  if (!res.ok) throw new Error(`Progress PDF failed: ${res.status}`);
+  return res.blob();
+}
+
+// ── Certificates (M2 Day 9) ───────────────────────────────────────────────
+// GET /certificates/{user_id}/eligibility -> EligibilityOut
+// { user_id, eligible, reasons_failed[], criteria_met[], checked_at }
+export async function getCertificateEligibility(userId) {
+  if (BUSINESS_USE_MOCKS) {
+    return delay({
+      user_id: userId,
+      eligible: false,
+      reasons_failed: ["Average accuracy below 80% for letters R, M, N"],
+      criteria_met: ["Completed minimum 10 sessions", "Practiced at least 15 signs"],
+      checked_at: new Date().toISOString(),
+    });
+  }
+  return businessRequest(`/certificates/${userId}/eligibility`);
+}
+
+// POST /certificates/{user_id}/generate — returns PDF blob.
+export async function generateCertificate(userId, learnerName) {
+  if (BUSINESS_USE_MOCKS) {
+    return delay(null);
+  }
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${BUSINESS_BASE_URL}/certificates/${userId}/generate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ learner_name: learnerName }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.detail?.message ?? `Certificate generation failed: ${res.status}`);
+  }
+  return res.blob();
 }
