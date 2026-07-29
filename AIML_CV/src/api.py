@@ -58,7 +58,7 @@ mp_draw = mp.solutions.drawing_utils
 hands = mp_hands.Hands(
     static_image_mode=True,
     max_num_hands=1,
-    min_detection_confidence=0.5
+    min_detection_confidence=0.3
 )
 
 # ==================================================
@@ -139,6 +139,10 @@ async def predict_sign(file: UploadFile = File(...)):
     image_array = np.frombuffer(image_bytes, np.uint8)
 
     image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+
+    # Improve uploaded image quality
+    image = cv2.resize(image, (640, 640))
+    image = cv2.convertScaleAbs(image, alpha=1.2, beta=25)
 
     if image is None:
         return {
