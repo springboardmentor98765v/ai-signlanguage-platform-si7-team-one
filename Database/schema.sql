@@ -2392,4 +2392,193 @@ ALTER TABLE ONLY public.weekly_analytics
 --
 
 
+-- ================================================================
+-- MILESTONE 3 — DAY 2 (Intern 5: Database & QA)
+-- New tables: notifications, badges, user_badges, streaks
+-- Plus leaderboard-supporting indexes
+-- ================================================================
 
+-- ----------------------------------------------------------------
+-- notifications
+-- ----------------------------------------------------------------
+
+CREATE SEQUENCE public.notifications_notification_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.notifications_notification_id_seq OWNER TO postgres;
+
+CREATE TABLE public.notifications (
+    notification_id      bigint NOT NULL,
+    user_id               uuid NOT NULL,
+    notification_type     character varying(50) NOT NULL,
+    title                  character varying(150) NOT NULL,
+    message                text NOT NULL,
+    is_read                boolean DEFAULT false NOT NULL,
+    read_at                timestamp with time zone,
+    related_entity_type    character varying(50),
+    related_entity_id      character varying(50),
+    created_at             timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_notifications_read_consistency CHECK (
+        ((is_read = false) AND (read_at IS NULL))
+        OR ((is_read = true) AND (read_at IS NOT NULL))
+    )
+);
+
+ALTER TABLE public.notifications OWNER TO postgres;
+
+ALTER SEQUENCE public.notifications_notification_id_seq OWNED BY public.notifications.notification_id;
+
+ALTER TABLE ONLY public.notifications
+    ALTER COLUMN notification_id SET DEFAULT nextval('public.notifications_notification_id_seq'::regclass);
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_pkey PRIMARY KEY (notification_id);
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users(user_id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+-- Fetch "my notifications" (Intern 2's list API)
+CREATE INDEX idx_notifications_user_id ON public.notifications USING btree (user_id);
+
+-- Unread-count / bell dot (Intern 1 Day 2) — partial index, same pattern as idx_users_is_active
+CREATE INDEX idx_notifications_user_unread ON public.notifications USING btree (user_id)
+    WHERE (is_read = false);
+
+-- Ordering the bell dropdown by newest first
+CREATE INDEX idx_notifications_created_at ON public.notifications USING btree (created_at);
+
+
+-- ----------------------------------------------------------------
+-- badges (catalog of badge definitions)
+-- ----------------------------------------------------------------
+
+CREATE SEQUENCE public.badges_badge_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.badges_badge_id_seq OWNER TO postgres;
+
+CREATE TABLE public.badges (
+    badge_id               integer NOT NULL,
+    badge_code             character varying(50) NOT NULL,
+    badge_name             character varying(100) NOT NULL,
+    description             text,
+    icon_url                text,
+    criteria_description    text,
+    is_active               boolean DEFAULT true NOT NULL,
+    created_at              timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at              timestamp with time zone DEFAULT now() NOT NULL
+);
+
+ALTER TABLE public.badges OWNER TO postgres;
+
+ALTER SEQUENCE public.badges_badge_id_seq OWNED BY public.badges.badge_id;
+
+ALTER TABLE ONLY public.badges
+    ALTER COLUMN badge_id SET DEFAULT nextval('public.badges_badge_id_seq'::regclass);
+
+ALTER TABLE ONLY public.badges
+    ADD CONSTRAINT badges_pkey PRIMARY KEY (badge_id);
+
+ALTER TABLE ONLY public.badges
+    ADD CONSTRAINT uq_badges_code UNIQUE (badge_code);
+
+CREATE TRIGGER trg_badges_updated_at BEFORE UPDATE ON public.badges
+    FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- Only active badges should be shown as earnable / listed to learners
+CREATE INDEX idx_badges_is_active ON public.badges USING btree (is_active)
+    WHERE (is_active = true);
+
+
+-- ----------------------------------------------------------------
+-- user_badges (which user earned which badge, and when)
+-- ----------------------------------------------------------------
+
+CREATE SEQUENCE public.user_badges_user_badge_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+ALTER SEQUENCE public.user_badges_user_badge_id_seq OWNER TO postgres;
+
+CREATE TABLE public.user_badges (
+    user_badge_id    bigint NOT NULL,
+    user_id           uuid NOT NULL,
+    badge_id          integer NOT NULL,
+    earned_at         timestamp with time zone DEFAULT now() NOT NULL
+);
+
+ALTER TABLE public.user_badges OWNER TO postgres;
+
+ALTER SEQUENCE public.user_badges_user_badge_id_seq OWNED BY public.user_badges.user_badge_id;
+
+ALTER TABLE ONLY public.user_badges
+    ALTER COLUMN user_badge_id SET DEFAULT nextval('public.user_badges_user_badge_id_seq'::regclass);
+
+ALTER TABLE ONLY public.user_badges
+    ADD CONSTRAINT user_badges_pkey PRIMARY KEY (user_badge_id);
+
+ALTER TABLE ONLY public.user_badges
+    ADD CONSTRAINT uq_user_badges_user_badge UNIQUE (user_id, badge_id);
+
+ALTER TABLE ONLY public.user_badges
+    ADD CONSTRAINT user_badges_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users(user_id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.user_badges
+    ADD CONSTRAINT user_badges_badge_id_fkey FOREIGN KEY (badge_id)
+        REFERENCES public.badges(badge_id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+-- "My badges" dashboard cards (Intern 1 Day 3)
+CREATE INDEX idx_user_badges_user_id ON public.user_badges USING btree (user_id);
+
+
+-- ----------------------------------------------------------------
+-- streaks (one row per user — current streak state, not a log)
+-- ----------------------------------------------------------------
+
+CREATE TABLE public.streaks (
+    user_id                uuid NOT NULL,
+    current_streak         integer DEFAULT 0 NOT NULL,
+    longest_streak         integer DEFAULT 0 NOT NULL,
+    last_practice_date     date,
+    updated_at             timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_streaks_current_nonneg CHECK (current_streak >= 0),
+    CONSTRAINT chk_streaks_longest_nonneg CHECK (longest_streak >= 0),
+    CONSTRAINT chk_streaks_longest_ge_current CHECK (longest_streak >= current_streak)
+);
+
+ALTER TABLE public.streaks OWNER TO postgres;
+
+ALTER TABLE ONLY public.streaks
+    ADD CONSTRAINT streaks_pkey PRIMARY KEY (user_id);
+
+ALTER TABLE ONLY public.streaks
+    ADD CONSTRAINT streaks_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users(user_id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+CREATE TRIGGER trg_streaks_updated_at BEFORE UPDATE ON public.streaks
+    FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- Leaderboard "By Streak" ranking (Day 2 explicit requirement)
+CREATE INDEX idx_streaks_current_streak ON public.streaks USING btree (current_streak DESC);
+
+
+-- ----------------------------------------------------------------
+-- Leaderboard "By Accuracy" support — existing Milestone 2 table,
+-- this column had no index until now
+-- ----------------------------------------------------------------
+
+CREATE INDEX idx_analytics_average_accuracy ON public.analytics USING btree (average_accuracy DESC);
