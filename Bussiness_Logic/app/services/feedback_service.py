@@ -49,6 +49,10 @@ SIGN_TIPS: Dict[str, Dict[str, str]] = {
         "correction": "For I: raise only your pinky finger straight up, all other fingers in a fist.",
         "praise": "Great I — pinky isolated cleanly.",
     },
+    "J": {
+        "correction": "For J: start like I (pinky up) then draw a J shape in the air — the motion matters.",
+        "praise": "Good J — pinky and the J motion were both clear.",
+    },
     "K": {
         "correction": "For K: index finger up, middle finger angled out, thumb between them — spread them clearly.",
         "praise": "Good K — the three-finger spread was clear.",
@@ -69,9 +73,49 @@ SIGN_TIPS: Dict[str, Dict[str, str]] = {
         "correction": "For O: curve all fingers and thumb to touch at the tips, forming a clear O circle.",
         "praise": "Great O — the circular shape was well formed.",
     },
+    "P": {
+        "correction": "For P: like K but pointed downward — index finger points down, middle finger out, thumb between.",
+        "praise": "Good P — downward K shape was correct.",
+    },
+    "Q": {
+        "correction": "For Q: like G but pointed downward — index and thumb pointing down together.",
+        "praise": "Nice Q — downward G orientation was right.",
+    },
+    "R": {
+        "correction": "For R: cross your index and middle fingers while extending them up together.",
+        "praise": "Good R — crossed fingers were clearly visible.",
+    },
+    "S": {
+        "correction": "For S: make a fist with your thumb crossing over your fingers — different from A where thumb is on the side.",
+        "praise": "Clean S — fist with thumb over fingers was correct.",
+    },
+    "T": {
+        "correction": "For T: make a fist with your thumb tucked between index and middle fingers.",
+        "praise": "Good T — thumb between index and middle fingers was right.",
+    },
+    "U": {
+        "correction": "For U: extend index and middle fingers straight up together, side by side.",
+        "praise": "Nice U — two fingers straight up and together.",
+    },
+    "V": {
+        "correction": "For V: extend index and middle fingers in a V shape (spread apart), thumb holding other fingers.",
+        "praise": "Great V — the spread between index and middle fingers was clear.",
+    },
+    "W": {
+        "correction": "For W: extend index, middle, and ring fingers spread apart in a W shape.",
+        "praise": "Good W — three fingers spread correctly.",
+    },
+    "X": {
+        "correction": "For X: extend and bend your index finger into a hook shape.",
+        "praise": "Nice X — the hooked index finger was clear.",
+    },
     "Y": {
         "correction": "For Y: extend thumb and pinky out, keep other three fingers folded in tightly.",
         "praise": "Nice Y — thumb and pinky extension was clear.",
+    },
+    "Z": {
+        "correction": "For Z: extend your index finger and draw a Z shape in the air.",
+        "praise": "Good Z — index finger and Z motion were both visible.",
     },
 }
 
