@@ -5,7 +5,6 @@ import { TopBar } from "./TopBar";
 import { useAuth } from "../../context/AuthContext";
 import { SCREEN_PATH, PATH_SCREEN } from "../../lib/nav";
 import type { Screen } from "../../lib/types";
-import NotificationBell from "../shared/NotificationBell";  // ← ADD
 
 export function AppShell() {
   const { role, logout } = useAuth();
@@ -28,9 +27,20 @@ export function AppShell() {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      <Sidebar role={role} active={activeScreen} setScreen={go} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar
+        role={role}
+        active={activeScreen}
+        setScreen={go}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <TopBar role={role} screen={activeScreen} onLogout={handleLogout} onMenuToggle={() => setSidebarOpen(o => !o)} />
+        <TopBar
+          role={role}
+          screen={activeScreen}
+          onLogout={handleLogout}
+          onMenuToggle={() => setSidebarOpen((o) => !o)}
+        />
         <main className={`flex-1 ${fullHeight ? "overflow-hidden" : "overflow-auto"}`}>
           <Outlet context={{ go }} />
         </main>
