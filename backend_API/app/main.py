@@ -34,3 +34,9 @@ app.include_router(health.router)
 app.include_router(predict.router)
 app.include_router(instructor.router)
 app.include_router(admin.router)
+
+# M3
+
+from app.routers import notification
+
+app.include_router(notification.router)

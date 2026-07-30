@@ -26,3 +26,50 @@ def ensure_roles_seeded():
 @pytest.fixture
 def test_client():
     return client
+
+
+import uuid
+from app.models.user import User
+from app.models.user_role import UserRole
+from app.core.security import hash_password, create_access_token
+
+
+@pytest.fixture
+def db_session():
+    """Provides a DB session for direct model/service-layer tests."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+@pytest.fixture
+def test_user(db_session):
+    """Creates (or reuses) a test learner user for notification tests."""
+    email = "notif_test_user@example.com"
+    user = db_session.query(User).filter(User.email == email).first()
+    if not user:
+        user = User(
+            email=email,
+            password_hash=hash_password("TestPass123!"),
+            full_name="Notif Test User",
+        )
+        db_session.add(user)
+        db_session.commit()
+        db_session.refresh(user)
+
+        # Link to "learner" role via the UserRole join table
+        role = db_session.query(Role).filter(Role.role_name == "learner").first()
+        link = UserRole(user_id=user.user_id, role_id=role.role_id)
+        db_session.add(link)
+        db_session.commit()
+
+    return user
+
+
+@pytest.fixture
+def auth_headers(test_user):
+    """Generates a valid Bearer token header for the test user."""
+    token = create_access_token({"sub": str(test_user.user_id)})
+    return {"Authorization": f"Bearer {token}"}

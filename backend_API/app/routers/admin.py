@@ -56,3 +56,82 @@ def change_user_role(
         db.add(UserRole(user_id=user_id, role_id=role.role_id))
         db.commit()
     return {"message": f"Role '{role_name}' added to user"}
+
+
+import csv
+import io
+
+from fastapi import UploadFile, File
+from app.schemas.admin_bulk import (
+    BulkUserActionRequest, BulkUserActionResponse, BulkLessonUploadResult
+)
+from app.models.user import User
+from app.models.lesson import Lesson
+from app.dependencies.roles import require_instructor_or_admin  # or your admin-only dependency
+
+
+@router.post("/users/bulk-action", response_model=BulkUserActionResponse)
+def bulk_user_action(
+    payload: BulkUserActionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_instructor_or_admin),
+):
+    if payload.action not in ("activate", "deactivate"):
+        raise HTTPException(status_code=400, detail="action must be 'activate' or 'deactivate'")
+
+    new_status = payload.action == "activate"
+    updated_count = 0
+    failed_ids = []
+
+    for user_id in payload.user_ids:
+        user = db.query(User).filter(User.user_id == user_id).first()
+        if not user:
+            failed_ids.append(user_id)
+            continue
+        user.is_active = new_status
+        updated_count += 1
+
+    db.commit()
+    return BulkUserActionResponse(updated_count=updated_count, failed_ids=failed_ids)
+
+
+@router.post("/lessons/bulk-upload", response_model=BulkLessonUploadResult)
+async def bulk_upload_lessons(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_instructor_or_admin),
+):
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="File must be a CSV")
+
+    contents = await file.read()
+    decoded = contents.decode("utf-8")
+    reader = csv.DictReader(io.StringIO(decoded))
+
+    created_count = 0
+    failed_rows = []
+
+    required_fields = {"module_id", "title", "sequence_order"}
+
+    for i, row in enumerate(reader, start=1):
+        if not required_fields.issubset(row.keys()):
+            failed_rows.append({"row": i, "error": "Missing required fields", "data": row})
+            continue
+        try:
+            lesson = Lesson(
+                module_id=int(row["module_id"]),
+                title=row["title"],
+                description=row.get("description") or None,
+                sequence_order=int(row["sequence_order"]),
+                estimated_duration_minutes=int(row["estimated_duration_minutes"]) if row.get("estimated_duration_minutes") else None,
+                difficulty_level=row.get("difficulty_level", "beginner"),
+                is_published=row.get("is_published", "false").lower() == "true",
+                category=row.get("category", "Alphabet"),
+            )
+            db.add(lesson)
+            created_count += 1
+        except Exception as e:
+            failed_rows.append({"row": i, "error": str(e), "data": row})
+
+    db.commit()
+    return BulkLessonUploadResult(created_count=created_count, failed_rows=failed_rows)

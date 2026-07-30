@@ -1,5 +1,5 @@
 from fastapi import Depends, HTTPException, status
-from app.dependencies.auth import get_current_user
+from app.core.security import get_current_user
 
 def require_instructor_or_admin(current_user = Depends(get_current_user)):
     user_role = current_user.role.name.lower()
