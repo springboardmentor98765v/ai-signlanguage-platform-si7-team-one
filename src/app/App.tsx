@@ -4,7 +4,7 @@ import { ThemeProvider } from "./ThemeProvider";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 import { AppShell } from "./components/layout/AppShell";
 import type { Screen, Role } from "./lib/types";
-
+import Leaderboard from "./pages/Leaderboard";
 import LoginScreen from "./pages/LoginScreen";
 import SignupScreen from "./pages/SignupScreen";
 import OnboardingScreen from "./pages/OnboardingScreen";
@@ -26,6 +26,7 @@ import SystemMonitoring from "./pages/SystemMonitoring";
 import NotificationsPanel from "./pages/NotificationsPanel";
 import SettingsScreen from "./pages/SettingsScreen";
 import CameraPermissionScreen from "./pages/CameraPermissionScreen";
+import { SCREEN_PATH } from "./lib/nav";
 
 // Small bridge: AppShell passes `go` down via Outlet context; pages that
 // were written to take a `go` prop directly (unchanged from the original
@@ -112,7 +113,8 @@ export default function App() {
               <Route path="/notifications" element={<NotificationsPanel />} />
               <Route path="/settings" element={<SettingsScreen />} />
               <Route path="/camera-permission" element={<GoPage Component={CameraPermissionScreen} />} />
-
+              
+              <Route path="/leaderboard" element={<GoPage Component={Leaderboard} />} />
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
             </Route>
           </Route>

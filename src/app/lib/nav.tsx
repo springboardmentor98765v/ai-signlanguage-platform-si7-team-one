@@ -1,5 +1,5 @@
 import {
-  Home, BookOpen, Camera, CheckSquare, TrendingUp, Award, Users, Server, Activity,
+  Home, BookOpen, Camera, CheckSquare, TrendingUp, Award, Users, Server, Activity, Trophy,
 } from "lucide-react";
 import type { Role, Screen } from "./types";
 
@@ -11,6 +11,7 @@ export const NAV: Record<Role, { screen: Screen; label: string; icon: React.Elem
     { screen: "assessment",        label: "Assessments", icon: CheckSquare },
     { screen: "progress",          label: "Progress",  icon: TrendingUp },
     { screen: "certificates",      label: "Certificates", icon: Award },
+    { screen: "leaderboard",      label: "Leaderboard", icon: Trophy },
   ],
   instructor: [
     { screen: "instructor-dashboard", label: "Dashboard", icon: Home },
@@ -32,7 +33,8 @@ export const SCREEN_LABELS: Record<Screen, string> = {
   "learner-dashboard": "Dashboard", courses: "Course Catalog",
   lesson: "Lesson View", practice: "Practice", assessment: "Assessment",
   feedback: "AI Feedback", progress: "Progress & Analytics",
-  certificates: "Certificates", "instructor-dashboard": "Instructor Dashboard",
+  certificates: "Certificates", leaderboard: "Leaderboard",
+  "instructor-dashboard": "Instructor Dashboard",
   "course-management": "Course Management", "student-detail": "Student Detail",
   "trainer-console": "Trainer Console", "admin-dashboard": "Admin Dashboard",
   "user-management": "User Management", "system-monitoring": "System Monitoring",
@@ -55,7 +57,8 @@ export const SCREEN_PATH: Record<Screen, string> = {
   "learner-dashboard": "/dashboard", courses: "/courses",
   lesson: "/courses/lesson", practice: "/practice", assessment: "/assessment",
   feedback: "/feedback", progress: "/progress",
-  certificates: "/certificates", "instructor-dashboard": "/instructor",
+  certificates: "/certificates", leaderboard: "/leaderboard",
+  "instructor-dashboard": "/instructor",
   "course-management": "/instructor/courses", "student-detail": "/instructor/students",
   "trainer-console": "/trainer", "admin-dashboard": "/admin",
   "user-management": "/admin/users", "system-monitoring": "/admin/system",
@@ -68,3 +71,4 @@ export const SCREEN_PATH: Record<Screen, string> = {
 export const PATH_SCREEN: Record<string, Screen> = Object.fromEntries(
   Object.entries(SCREEN_PATH).map(([screen, path]) => [path, screen as Screen])
 ) as Record<string, Screen>;
+
