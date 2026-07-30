@@ -40,6 +40,7 @@ export default function ProgressAnalytics() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [csvLoading, setCsvLoading] = useState(false);
 
   const uid = userId ?? "00000000-0000-0000-0000-000000000001";
 
@@ -73,6 +74,41 @@ export default function ProgressAnalytics() {
       alert("Couldn't generate PDF. Is the Business Logic service running?");
     } finally {
       setPdfLoading(false);
+    }
+  };
+
+  const handleDownloadCSV = async () => {
+    setCsvLoading(true);
+    try {
+      if (!report) return;
+
+      const rows = [
+        ["Metric", "Value"],
+        ["Lessons Completed", report.distinct_signs_practiced],
+        ["Average Accuracy", `${Math.round(report.average_accuracy * 100)}%`],
+        ["Practice Time (hours)", practiceHours],
+        ["Improvement Rate", report.improvement_rate != null ? `${Math.round(report.improvement_rate * 100)}%` : "—"],
+        ["Weak Signs", report.weak_signs.join(", ") || "None"],
+        ["Strong Signs", report.strong_signs.join(", ") || "None"],
+        ["Recommended for Practice", report.recommended_for_practice.join(", ") || "None"],
+        ["Certificate Eligible", report.certificate_eligible ? "Yes" : "No"],
+      ];
+
+      const csv = rows
+        .map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(","))
+        .join("\n");
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "progress_report.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert("Couldn't export CSV right now.");
+    } finally {
+      setCsvLoading(false);
     }
   };
 
@@ -170,15 +206,24 @@ export default function ProgressAnalytics() {
             </div>
           </div>
 
-          {/* Download PDF */}
-          <button
-            onClick={handleDownloadPDF}
-            disabled={pdfLoading}
-            className="flex items-center gap-2 bg-primary hover:bg-primary/90 disabled:opacity-60 text-primary-foreground font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm"
-          >
-            <Download size={14} />
-            {pdfLoading ? "Generating PDF..." : "Download Progress Report PDF"}
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={handleDownloadCSV}
+              disabled={csvLoading || !report}
+              className="flex items-center gap-2 bg-card border border-border hover:bg-hover disabled:opacity-60 text-foreground font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm"
+            >
+              <Download size={14} />
+              {csvLoading ? "Exporting CSV..." : "Export Report CSV"}
+            </button>
+            <button
+              onClick={handleDownloadPDF}
+              disabled={pdfLoading}
+              className="flex items-center gap-2 bg-primary hover:bg-primary/90 disabled:opacity-60 text-primary-foreground font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm"
+            >
+              <Download size={14} />
+              {pdfLoading ? "Generating PDF..." : "Download Progress Report PDF"}
+            </button>
+          </div>
         </>
       )}
 
