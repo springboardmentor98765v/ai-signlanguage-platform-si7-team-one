@@ -2,16 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { LogOut, Menu, Bell, Award, MessageCircle, Info } from "lucide-react";
 import type { Role, Screen } from "../../lib/types";
 import { SCREEN_LABELS, ROLE_CLS } from "../../lib/nav";
-
-// M3 Day 2: Mock notifications — will be replaced by Intern 2's
-// GET /notifications API once those endpoints are confirmed live.
-const MOCK_NOTIFS = [
-  { id: 1, type: "achievement", title: "New badge earned!",          desc: "You earned the \"Perfect Score\" badge",                t: "2 min ago",  read: false },
-  { id: 2, type: "feedback",    title: "Instructor feedback",         desc: "Dr. Roberts left a note on your FEAR assessment",       t: "1 hr ago",   read: false },
-  { id: 3, type: "reminder",    title: "Daily practice reminder",     desc: "Keep your 14-day streak going today!",                  t: "3 hr ago",   read: false },
-  { id: 4, type: "system",      title: "New course available",        desc: "ASL Advanced Conversation is now open",                 t: "Yesterday",  read: true  },
-  { id: 5, type: "achievement", title: "Module complete!",            desc: "You finished Module 3: Basic Phrases",                  t: "2 days ago", read: true  },
-];
+import { useAuth } from "../../context/AuthContext";
+import { getNotifications, markNotificationsRead } from "../../services/businessApi";
 
 function NotifIcon({ type }: { type: string }) {
   if (type === "achievement") return <Award size={13} className="text-warning" />;
@@ -28,11 +20,31 @@ function NotifIconBg({ type }: { type: string }) {
 export function TopBar({
   role, screen, onLogout, onMenuToggle,
 }: { role: Role; screen: Screen; onLogout: () => void; onMenuToggle: () => void }) {
-  const [notifs, setNotifs] = useState(MOCK_NOTIFS);
+  const { userId } = useAuth();
+  const [notifs, setNotifs] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const unread = notifs.filter(n => !n.read).length;
+
+  useEffect(() => {
+    if (!open || !userId) return;
+    setLoading(true);
+    getNotifications(userId)
+      .then((data) => {
+        setNotifs((data.notifications ?? []).map((n: any) => ({
+          id: n.notification_id,
+          type: n.notification_type === "badge_earned" ? "achievement" : n.notification_type === "certificate_ready" ? "system" : n.notification_type === "new_recommendation" ? "feedback" : "system",
+          title: n.title,
+          desc: n.message,
+          t: new Date(n.created_at).toLocaleString(),
+          read: n.is_read,
+        })));
+      })
+      .catch(() => setNotifs([]))
+      .finally(() => setLoading(false));
+  }, [open, userId]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -45,7 +57,10 @@ export function TopBar({
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const markAllRead = () => setNotifs(prev => prev.map(n => ({ ...n, read: true })));
+  const markAllRead = () => {
+    if (!userId) return;
+    markNotificationsRead(userId).finally(() => setNotifs(prev => prev.map(n => ({ ...n, read: true }))));
+  };
   const markRead = (id: number) => setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
 
   return (
@@ -95,7 +110,9 @@ export function TopBar({
               )}
             </div>
             <div className="max-h-80 overflow-y-auto">
-              {notifs.length === 0 ? (
+              {loading ? (
+                <div className="px-4 py-8 text-center text-xs text-muted-foreground">Loading notifications…</div>
+              ) : notifs.length === 0 ? (
                 <div className="px-4 py-8 text-center text-xs text-muted-foreground">
                   No notifications yet
                 </div>

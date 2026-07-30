@@ -1,8 +1,10 @@
 // Business Logic service client — Practice/Assessment/Feedback/Analytics/
 // Certificate/Recommendation/Progress. Runs standalone on port 8002 (dev),
 // separate from Intern 2's backend (8000) and Intern 3's AI service (8001).
-// Confirmed against real routers + schemas (2026-07-20):
-//   routers/practice.py, assessment.py, feedback.py + matching schemas.
+// Confirmed against real routers + schemas (2026-07-30):
+//   routers/practice.py, assessment.py, feedback.py, analytics.py,
+//   progress.py, certificate.py, leaderboard.py, notification.py,
+//   export.py, recommendation.py + matching schemas.
 // No auth on this service currently — same caveat as the AI service.
 
 const BUSINESS_BASE_URL = "http://127.0.0.1:8002";
@@ -252,5 +254,93 @@ export async function generateCertificate(userId, learnerName) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err?.detail?.message ?? `Certificate generation failed: ${res.status}`);
   }
+  return res.blob();
+}
+
+// ── M3: Gamification / Leaderboard / Notifications / Export ─────────────
+export async function getGamification(userId) {
+  if (BUSINESS_USE_MOCKS) {
+    return delay({
+      user_id: userId,
+      streak: { current_streak: 14, longest_streak: 21, last_practiced_date: new Date().toISOString() },
+      badges: [],
+      total_badges_earned: 0,
+    });
+  }
+  return businessRequest(`/gamification/${userId}`);
+}
+
+export async function getLeaderboard(rankBy = "accuracy") {
+  if (BUSINESS_USE_MOCKS) {
+    return delay({
+      rank_by: rankBy,
+      entries: [],
+      total_learners: 0,
+    });
+  }
+  return businessRequest(`/leaderboard?rank_by=${encodeURIComponent(rankBy)}`);
+}
+
+export async function getNotifications(userId) {
+  if (BUSINESS_USE_MOCKS) {
+    return delay({
+      user_id: userId,
+      notifications: [],
+      unread_count: 0,
+      total: 0,
+    });
+  }
+  return businessRequest(`/notifications/${userId}`);
+}
+
+export async function markNotificationsRead(userId) {
+  if (BUSINESS_USE_MOCKS) {
+    return delay({
+      user_id: userId,
+      notifications: [],
+      unread_count: 0,
+      total: 0,
+    });
+  }
+  return businessRequest(`/notifications/${userId}/read`, { method: "POST" });
+}
+
+export async function triggerNotifications(userId) {
+  if (BUSINESS_USE_MOCKS) {
+    return delay({
+      user_id: userId,
+      notifications: [],
+      unread_count: 0,
+      total: 0,
+    });
+  }
+  return businessRequest(`/notifications/${userId}/trigger`, { method: "POST" });
+}
+
+export async function downloadLearnerProgressExport(userId, format = "csv") {
+  if (BUSINESS_USE_MOCKS) {
+    return delay(null);
+  }
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${BUSINESS_BASE_URL}/export/${userId}/progress?format=${encodeURIComponent(format)}`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+  return res.blob();
+}
+
+export async function downloadClassSummaryExport(format = "csv") {
+  if (BUSINESS_USE_MOCKS) {
+    return delay(null);
+  }
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${BUSINESS_BASE_URL}/export/class/summary?format=${encodeURIComponent(format)}`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) throw new Error(`Class export failed: ${res.status}`);
   return res.blob();
 }

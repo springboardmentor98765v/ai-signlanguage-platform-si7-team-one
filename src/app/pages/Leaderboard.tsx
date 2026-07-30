@@ -1,8 +1,10 @@
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { Trophy, Flame, ArrowUpRight, Medal, Crown, Sparkles } from "lucide-react";
 import type { Screen } from "../lib/types";
 import { MCard } from "../components/shared/MCard";
 import { Bdg } from "../components/shared/Indicators";
+import { useAuth } from "../context/AuthContext";
+import { getLeaderboard, getGamification } from "../services/businessApi";
 
 type LeaderRow = {
   rank: number;
@@ -13,22 +15,6 @@ type LeaderRow = {
   badges: number;
   isMe?: boolean;
 };
-
-const accuracyLeaders: LeaderRow[] = [
-  { rank: 1, name: "Maya Chen", role: "Learner", accuracy: 98, streak: 22, badges: 12, isMe: true },
-  { rank: 2, name: "Aanya Shah", role: "Learner", accuracy: 96, streak: 18, badges: 10 },
-  { rank: 3, name: "Ethan Brooks", role: "Learner", accuracy: 94, streak: 15, badges: 9 },
-  { rank: 4, name: "Noah Patel", role: "Learner", accuracy: 92, streak: 12, badges: 8 },
-  { rank: 5, name: "Sara Khan", role: "Learner", accuracy: 91, streak: 11, badges: 7 },
-];
-
-const streakLeaders: LeaderRow[] = [
-  { rank: 1, name: "Maya Chen", role: "Learner", accuracy: 98, streak: 22, badges: 12, isMe: true },
-  { rank: 2, name: "Sara Khan", role: "Learner", accuracy: 91, streak: 21, badges: 8 },
-  { rank: 3, name: "Aanya Shah", role: "Learner", accuracy: 96, streak: 18, badges: 10 },
-  { rank: 4, name: "Ethan Brooks", role: "Learner", accuracy: 94, streak: 16, badges: 9 },
-  { rank: 5, name: "Noah Patel", role: "Learner", accuracy: 92, streak: 14, badges: 7 },
-];
 
 function MedalIcon({ rank }: { rank: number }) {
   if (rank === 1) return <Crown size={16} className="text-warning" />;
@@ -57,7 +43,7 @@ function LeaderCard({
           <h3 className="font-semibold text-foreground">{title}</h3>
           <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
         </div>
-        <Bdg label="Live mock data" v="info" />
+        <Bdg label="Live data" v="info" />
       </div>
 
       <div className="space-y-2">
@@ -94,10 +80,36 @@ function LeaderCard({
 }
 
 export default function Leaderboard({ go }: { go: (s: Screen) => void }) {
-  const me = useMemo(
-    () => accuracyLeaders.find((row) => row.isMe) ?? accuracyLeaders[0],
-    []
-  );
+  const { userId } = useAuth();
+  const [accuracyLeaders, setAccuracyLeaders] = useState<LeaderRow[]>([]);
+  const [streakLeaders, setStreakLeaders] = useState<LeaderRow[]>([]);
+  const [me, setMe] = useState<LeaderRow | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) return;
+    setLoading(true);
+    Promise.all([getLeaderboard("accuracy"), getLeaderboard("streak"), getGamification(userId)])
+      .then(([acc, streak, gamification]) => {
+        const mapRows = (entries: any[]) =>
+          entries.map((entry) => ({
+            rank: entry.rank,
+            name: entry.user_id === userId ? "You" : `Learner ${String(entry.user_id).slice(0, 4)}`,
+            role: "Learner",
+            accuracy: Math.round(entry.average_accuracy),
+            streak: entry.current_streak,
+            badges: gamification.total_badges_earned,
+            isMe: entry.user_id === userId,
+          }));
+
+        const accuracyRows = mapRows(acc.entries ?? []);
+        const streakRows = mapRows(streak.entries ?? []);
+        setAccuracyLeaders(accuracyRows);
+        setStreakLeaders(streakRows);
+        setMe(accuracyRows.find((row) => row.isMe) ?? accuracyRows[0] ?? null);
+      })
+      .finally(() => setLoading(false));
+  }, [userId]);
 
   return (
     <div className="p-6 space-y-5 max-w-6xl mx-auto">
@@ -118,29 +130,35 @@ export default function Leaderboard({ go }: { go: (s: Screen) => void }) {
       </div>
 
       <div className="grid grid-cols-4 gap-4">
-        <MCard icon={Trophy} label="Your Accuracy Rank" value={`#${me.rank}`} delta={`${me.accuracy}% accuracy`} col="cyan" />
-        <MCard icon={Flame} label="Current Streak" value={`${me.streak}`} delta="days in a row" col="amber" />
-        <MCard icon={ArrowUpRight} label="Badges Earned" value={`${me.badges}`} delta="locked + unlocked" col="emerald" />
+        <MCard icon={Trophy} label="Your Accuracy Rank" value={me ? `#${me.rank}` : "—"} delta={me ? `${me.accuracy}% accuracy` : "Loading"} col="cyan" />
+        <MCard icon={Flame} label="Current Streak" value={me ? `${me.streak}` : "—"} delta="days in a row" col="amber" />
+        <MCard icon={ArrowUpRight} label="Badges Earned" value={me ? `${me.badges}` : "—"} delta="live from gamification" col="emerald" />
         <MCard icon={Medal} label="Top Rank" value="#1" delta="by accuracy & streak" col="violet" />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <LeaderCard
-          title="Ranked by Accuracy"
-          subtitle="Highest average accuracy across recent practice"
-          rows={accuracyLeaders}
-          metricLabel="accuracy"
-          metricValue={(row) => `${row.accuracy}%`}
-        />
+      {loading ? (
+        <div className="bg-card border border-border rounded-xl p-8 text-center text-sm text-muted-foreground">
+          Loading leaderboard…
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4">
+          <LeaderCard
+            title="Ranked by Accuracy"
+            subtitle="Highest average accuracy across recent practice"
+            rows={accuracyLeaders}
+            metricLabel="accuracy"
+            metricValue={(row) => `${row.accuracy}%`}
+          />
 
-        <LeaderCard
-          title="Ranked by Streak"
-          subtitle="Longest active practice streak this week"
-          rows={streakLeaders}
-          metricLabel="streak"
-          metricValue={(row) => `${row.streak} days`}
-        />
-      </div>
+          <LeaderCard
+            title="Ranked by Streak"
+            subtitle="Longest active practice streak this week"
+            rows={streakLeaders}
+            metricLabel="streak"
+            metricValue={(row) => `${row.streak} days`}
+          />
+        </div>
+      )}
     </div>
   );
 }

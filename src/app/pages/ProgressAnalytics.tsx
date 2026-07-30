@@ -17,6 +17,7 @@ import { Bdg } from "../components/shared/Indicators";
 import { useAuth } from "../context/AuthContext";
 import {
   getProgressReport, getWeeklyAnalytics, getUserAnalytics, downloadProgressPDF,
+  downloadLearnerProgressExport,
 } from "../services/businessApi";
 import { getAnalytics } from "../services/aiApi";
 
@@ -80,25 +81,9 @@ export default function ProgressAnalytics() {
   const handleDownloadCSV = async () => {
     setCsvLoading(true);
     try {
-      if (!report) return;
+      const blob = await downloadLearnerProgressExport(uid, "csv");
+      if (!blob) return;
 
-      const rows = [
-        ["Metric", "Value"],
-        ["Lessons Completed", report.distinct_signs_practiced],
-        ["Average Accuracy", `${Math.round(report.average_accuracy * 100)}%`],
-        ["Practice Time (hours)", practiceHours],
-        ["Improvement Rate", report.improvement_rate != null ? `${Math.round(report.improvement_rate * 100)}%` : "—"],
-        ["Weak Signs", report.weak_signs.join(", ") || "None"],
-        ["Strong Signs", report.strong_signs.join(", ") || "None"],
-        ["Recommended for Practice", report.recommended_for_practice.join(", ") || "None"],
-        ["Certificate Eligible", report.certificate_eligible ? "Yes" : "No"],
-      ];
-
-      const csv = rows
-        .map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(","))
-        .join("\n");
-
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -141,7 +126,7 @@ export default function ProgressAnalytics() {
           {/* ── REAL DATA from Business Logic /progress/{user_id} ── */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <MCard icon={BookOpen}   label="Lessons Completed"   value={String(report.distinct_signs_practiced)} col="cyan" />
-            <MCard icon={Target}     label="Average Accuracy"    value={`${Math.round(report.average_accuracy * 100)}%`} delta={`Grade ${report.grade}`} col="emerald" />
+            <MCard icon={Target}     label="Average Accuracy"    value={`${report.average_accuracy}%`} delta={`Grade ${report.grade}`} col="emerald" />
             <MCard icon={Clock}      label="Practice Time"       value={`${practiceHours}h`} col="violet" />
             <MCard icon={TrendingUp} label="Improvement Rate"    value={report.improvement_rate != null ? `+${Math.round(report.improvement_rate * 100)}%` : "—"} col="amber" />
           </div>

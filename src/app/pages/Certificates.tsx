@@ -10,24 +10,20 @@ import {
 import { PBar } from "../components/shared/Indicators";
 import { Bdg } from "../components/shared/Indicators";
 import { useAuth } from "../context/AuthContext";
-import { getCertificateEligibility, generateCertificate, getProgressReport } from "../services/businessApi";
+import { getCertificateEligibility, generateCertificate } from "../services/businessApi";
 
 export default function Certificates() {
   const { userId } = useAuth();
   const uid = userId ?? "00000000-0000-0000-0000-000000000001";
 
   const [eligibility, setEligibility] = useState<any>(null);
-  const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [certLoading, setCertLoading] = useState(false);
   const [certError, setCertError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      getCertificateEligibility(uid),
-      getProgressReport(uid),
-    ])
-      .then(([elig, rep]) => { setEligibility(elig); setReport(rep); })
+    getCertificateEligibility(uid)
+      .then((elig) => { setEligibility(elig); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [uid]);
@@ -50,55 +46,8 @@ export default function Certificates() {
     }
   };
 
-  const practiceHours = report
-    ? Math.round(report.total_practice_time_seconds / 3600 * 10) / 10
-    : 0;
-
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6">
-
-      {/* ── REAL: Progress Report from Business Logic /progress/{user_id} ── */}
-      <div className="bg-card border border-border rounded-[14px] p-6" style={{ boxShadow: 'var(--card-shadow)' }}>
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="font-semibold text-foreground text-sm">Progress Report</h3>
-          {loading && <RefreshCw size={13} className="animate-spin text-muted-foreground" />}
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-foreground">{report?.distinct_signs_practiced ?? "—"}</div>
-            <div className="text-xs text-muted-foreground">Signs Practiced</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-foreground">{report ? `${Math.round(report.average_accuracy * 100)}%` : "—"}</div>
-            <div className="text-xs text-muted-foreground">Average Score</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-foreground">{report ? `${practiceHours}h` : "—"}</div>
-            <div className="text-xs text-muted-foreground">Practice Time</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-foreground">{report?.total_sessions ?? "—"}</div>
-            <div className="text-xs text-muted-foreground">Total Sessions</div>
-          </div>
-        </div>
-        {report?.weak_signs?.length > 0 && (
-          <div>
-            <div className="text-xs font-semibold text-muted-foreground mb-2.5">Weak Areas — needs more practice</div>
-            <div className="flex flex-wrap gap-2">
-              {report.weak_signs.map((s: string) => (
-                <div key={s} className="flex items-center gap-2 bg-muted/50 border border-border rounded-xl px-3 py-2">
-                  <div className="w-7 h-7 rounded-lg bg-rose-950/40 border border-rose-900/40 flex items-center justify-center text-xs font-bold text-rose-400">{s}</div>
-                  <div>
-                    <div className="text-xs font-semibold text-foreground">Letter {s}</div>
-                    <div className="text-[10px] text-rose-400">Needs practice</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* ── REAL: Certificate eligibility from Business Logic ── */}
       <div className={`bg-card border rounded-[14px] p-6 ${eligibility?.eligible ? "border-emerald-900/40" : "border-border"}`} style={{ boxShadow: 'var(--card-shadow)' }}>
         <div className="flex items-center justify-between mb-3">
