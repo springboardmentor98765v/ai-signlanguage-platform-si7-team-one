@@ -11,7 +11,7 @@ import type { Screen } from "../lib/types";
 import { MCard } from "../components/shared/MCard";
 import { Bdg, PBar, Ring } from "../components/shared/Indicators";
 import { getDashboard } from "../services/aiApi";
-import { accuracyData, lessonsCompleted } from "../lib/mockData";
+import { accuracyData, lessonsCompleted, BADGES, STREAK } from "../lib/mockData";
 import {
   LineChart, Line, BarChart, Bar, ResponsiveContainer,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -38,10 +38,10 @@ export default function LearnerDashboard({ go }: { go: (s: Screen) => void }) {
   }, []);
 
   return (
-    <div className="p-4 md:p-6 space-y-4 md:space-y-5 max-w-6xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+    <div className="p-6 space-y-5 max-w-6xl mx-auto">
+      <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold text-foreground">Good morning, Maya 👋</h2>
+          <h2 className="text-2xl font-bold text-foreground">Good morning, Maya 👋</h2>
           <p className="text-muted-foreground text-sm mt-1">You are on a 14-day streak — keep it up!</p>
         </div>
         <div className="flex items-center gap-2 bg-amber-950/30 border border-amber-900/40 rounded-xl px-4 py-2">
@@ -51,15 +51,15 @@ export default function LearnerDashboard({ go }: { go: (s: Screen) => void }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         <MCard icon={Target}   label="Overall Accuracy"  value="91%" delta="+3% this week"  col="cyan" />
         <MCard icon={BookOpen} label="Signs Learned"     value="248" delta="+12 today"      col="emerald" />
         <MCard icon={Clock}    label="Practice Time"     value="4.2h" delta="this week"     col="violet" />
         <MCard icon={Award}    label="Badges Earned"     value="7"   delta="1 new"          col="amber" />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="md:col-span-2 bg-card border border-border rounded-xl p-5">
+      <div className="grid grid-cols-3 gap-4">
+        <div className="col-span-2 bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-foreground">Continue Learning</h3>
             <Bdg label="In Progress" v="info" />
@@ -96,7 +96,7 @@ export default function LearnerDashboard({ go }: { go: (s: Screen) => void }) {
 
       {/* ── M2 Day 3 — real chart library (Recharts), sample data for now
           per the SRS checklist ("Graphs working with sample data for now"). ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <div className="bg-card border border-border rounded-xl p-5">
           <h3 className="font-semibold text-foreground mb-4">Accuracy Over Time</h3>
           <ResponsiveContainer width="100%" height={180}>
@@ -124,22 +124,51 @@ export default function LearnerDashboard({ go }: { go: (s: Screen) => void }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <div className="bg-card border border-border rounded-xl p-5">
-          <h3 className="font-semibold text-foreground mb-4">Recent Achievements</h3>
-          <div className="space-y-3">
-            {[
-              { lbl: "Perfect Score",  desc: "100% on Greetings assessment", em: "🏆", t: "Today" },
-              { lbl: "Speed Signer",   desc: "Completed 20 signs in 5 min",  em: "⚡", t: "Yesterday" },
-              { lbl: "Week Warrior",   desc: "7 consecutive practice days",  em: "🔥", t: "Jul 9" },
-            ].map(a => (
-              <div key={a.lbl} className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-[#162035] flex items-center justify-center text-base">{a.em}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-foreground">{a.lbl}</div>
-                  <div className="text-xs text-muted-foreground truncate">{a.desc}</div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-foreground">Badges & Streaks</h3>
+            <Bdg label={`${STREAK.current} day streak`} v="success" />
+          </div>
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="rounded-xl border border-border bg-[#0e1a30] p-3 text-center">
+              <div className="text-xs text-muted-foreground">Current</div>
+              <div className="text-2xl font-bold text-foreground mt-1">{STREAK.current}</div>
+              <div className="text-xs text-muted-foreground mt-1">days</div>
+            </div>
+            <div className="rounded-xl border border-border bg-[#0e1a30] p-3 text-center">
+              <div className="text-xs text-muted-foreground">Best</div>
+              <div className="text-2xl font-bold text-foreground mt-1">{STREAK.best}</div>
+              <div className="text-xs text-muted-foreground mt-1">days</div>
+            </div>
+            <div className="rounded-xl border border-border bg-[#0e1a30] p-3 text-center">
+              <div className="text-xs text-muted-foreground">Unlocked</div>
+              <div className="text-2xl font-bold text-foreground mt-1">{BADGES.filter(b => b.earned).length}</div>
+              <div className="text-xs text-muted-foreground mt-1">badges</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {BADGES.map((badge) => (
+              <div
+                key={badge.id}
+                className={`rounded-lg border p-3 transition-all ${
+                  badge.earned
+                    ? "border-warning/30 bg-warning/5"
+                    : "border-border bg-[#0e1a30] opacity-70"
+                }`}
+              >
+                <div className="flex items-start gap-2">
+                  <div className="w-9 h-9 rounded-full bg-[#162035] flex items-center justify-center text-base flex-shrink-0">
+                    {badge.em}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-foreground flex items-center gap-1">
+                      {badge.label}
+                      {!badge.earned && <Lock size={12} className="text-muted-foreground" />}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{badge.desc}</div>
+                  </div>
                 </div>
-                <span className="text-xs text-muted-foreground">{a.t}</span>
               </div>
             ))}
           </div>
