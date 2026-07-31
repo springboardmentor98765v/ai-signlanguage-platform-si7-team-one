@@ -1,16 +1,30 @@
 import subprocess
+import os
 from pathlib import Path
+from dotenv import load_dotenv
 
+load_dotenv()
+
+# PostgreSQL installation path
 PG_BIN = r"C:\Program Files\PostgreSQL\18\bin"
 
 PSQL = str(Path(PG_BIN) / "psql.exe")
 
-HOST = "localhost"
-PORT = "5432"
-DATABASE = "sign_language_learning"
-USERNAME = "postgres"
+HOST = os.getenv("PGHOST")
+PORT = os.getenv("PGPORT")
+DATABASE = os.getenv("PGDATABASE")
+USERNAME = os.getenv("PGUSER")
+PASSWORD = os.getenv("PGPASSWORD")
 
-schema = Path(__file__).parent.parent / "schema.sql"
+# Select the latest backup
+BACKUP_DIR = Path(__file__).parent.parent / "backups"
+backup_files = sorted(BACKUP_DIR.glob("*.sql"))
+
+if not backup_files:
+    print("No backup file found.")
+    exit()
+
+backup_file = backup_files[-1]
 
 command = [
     PSQL,
@@ -19,14 +33,19 @@ command = [
     "-U", USERNAME,
     "-d", DATABASE,
     "-f",
-    str(schema)
+    str(backup_file)
 ]
 
-print("Restoring schema...")
+env = os.environ.copy()
+env["PGPASSWORD"] = PASSWORD
 
-result = subprocess.run(command)
+print(f"Restoring backup:\n{backup_file}\n")
 
-if result.returncode == 0:
-    print("Schema restored successfully.")
-else:
-    print("Schema restore completed with warnings/errors.")
+try:
+    subprocess.run(command, env=env, check=True)
+    print("Backup restored successfully.")
+except subprocess.CalledProcessError:
+    print("Restore completed with warnings/errors. Review the psql output above.")
+
+
+    

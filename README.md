@@ -1,17 +1,29 @@
 # AI-Powered Sign Language Learning & Assessment Platform
 
-## Milestone 1
+## Project Overview
 
-This repository contains the source code for **Milestone 1** of the AI-Powered Sign Language Learning & Assessment Platform.
+This repository contains the source code for the **AI-Powered Sign Language Learning & Assessment Platform**.
 
-The goal of this milestone is to build a working end-to-end prototype that allows a learner to:
+The project is being developed incrementally across multiple milestones.
+
+### Current Progress
+
+- ✅ Milestone 1 Completed
+- ✅ Milestone 2 Completed
+- ✅ Milestone 3 (Completed up to Day 5)
+
+The platform allows learners to:
 
 - Register and Login
-- View sign language lessons
-- Practice signs using a webcam
-- Receive AI-based sign predictions
-- Get assessment scores and feedback
-- Store practice data in PostgreSQL.
+- Learn Sign Language Lessons
+- Practice Signs using a Webcam
+- Receive AI-based Sign Predictions
+- Complete Assessments
+- Earn Badges
+- Maintain Learning Streaks
+- Receive Notifications
+- View Learning Analytics
+- Store application data securely in PostgreSQL
 
 ---
 
@@ -38,6 +50,7 @@ The goal of this milestone is to build a working end-to-end prototype that allow
 ## Backend
 
 - FastAPI
+- SQLAlchemy
 - Uvicorn
 
 ## AI Service
@@ -51,6 +64,7 @@ The goal of this milestone is to build a working end-to-end prototype that allow
 ## Database
 
 - PostgreSQL 18
+- Neon PostgreSQL
 
 ## DevOps
 
@@ -67,17 +81,24 @@ ai-signlanguage-platform-si7-team-one/
 
 ├── AIML_CV/
 ├── backend_API/
-├── Frontend/
 ├── Business_Logic/
 ├── Database/
-│   ├── schema.sql
-│   ├── seed.sql
-│   ├── scripts/
-│   │   ├── backup_database.py
-│   │   └── restore_database.py
-│   ├── backups/
-│   └── docs/
-│       └── restore_guide.md
+│
+├── schema.sql
+├── seed.sql
+├── integration_tests.sql
+├── data_integrity_check.sql
+│
+├── scripts/
+│   ├── backup_database.py
+│   └── restore_database.py
+│
+├── backups/
+│
+├── docs/
+│   ├── restore_guide.md
+│   └── data_integrity_report.md
+│
 ├── docker-compose.yml
 ├── README.md
 └── .github/
@@ -89,13 +110,14 @@ ai-signlanguage-platform-si7-team-one/
 
 # Prerequisites
 
-Install the following before running the project:
+Install the following software before running the project.
 
 - Git
 - Docker Desktop
 - PostgreSQL 18
-- Python 3.11
-- VS Code (recommended)
+- Python 3.11+
+- pgAdmin 4
+- VS Code (Recommended)
 
 ---
 
@@ -111,36 +133,21 @@ cd ai-signlanguage-platform-si7-team-one
 
 # Database Configuration
 
-Database Name
+The project uses **Neon PostgreSQL** as the primary cloud database.
 
-```text
-sign_language_learning
+Database credentials are stored in the project's `.env` file.
+
+Example:
+
+```env
+HOST=your_neon_host
+PORT=5432
+DATABASE=neondb
+USERNAME=neondb_owner
+PASSWORD=your_password
 ```
 
-Default PostgreSQL Configuration
-
-```text
-Host     : localhost
-Port     : 5432
-Username : postgres
-Password : postgres
-```
-
----
-
-# Create Database
-
-Create a PostgreSQL database named:
-
-```text
-sign_language_learning
-```
-
-Example using psql:
-
-```sql
-CREATE DATABASE sign_language_learning;
-```
+> **Note:** Never commit the `.env` file to GitHub.
 
 ---
 
@@ -149,10 +156,10 @@ CREATE DATABASE sign_language_learning;
 Execute:
 
 ```bash
-psql -U postgres -d sign_language_learning -f Database/schema.sql
+psql -f Database/schema.sql
 ```
 
-This creates all database tables, constraints, indexes, and relationships.
+This creates all database tables, constraints, indexes, triggers, and relationships.
 
 ---
 
@@ -161,10 +168,49 @@ This creates all database tables, constraints, indexes, and relationships.
 Execute:
 
 ```bash
-psql -U postgres -d sign_language_learning -f Database/seed.sql
+psql -f Database/seed.sql
 ```
 
 This inserts the initial application data.
+
+---
+
+# Database Integration Tests
+
+Run:
+
+```bash
+psql -f Database/integration_tests.sql
+```
+
+This verifies:
+
+- Notifications
+- Badges
+- User Badges
+- Streaks
+- Database Indexes
+- Database Triggers
+
+---
+
+# Database Data Integrity Checks
+
+Run:
+
+```bash
+psql -f Database/data_integrity_check.sql
+```
+
+This validates:
+
+- Duplicate Users
+- Duplicate Badge Codes
+- Orphan Notifications
+- Orphan User Badges
+- Invalid Badge References
+- NULL Required Fields
+- Invalid Streak Values
 
 ---
 
@@ -173,15 +219,23 @@ This inserts the initial application data.
 Run:
 
 ```bash
-cd Database
-
-python scripts/backup_database.py
+python Database/scripts/backup_database.py
 ```
 
-The generated backup will be stored in:
+The script automatically:
+
+- Connects to the Neon PostgreSQL database
+- Creates a timestamped SQL backup
+- Saves the backup inside:
 
 ```text
 Database/backups/
+```
+
+Example:
+
+```text
+database_backup_20260731_211554.sql
 ```
 
 ---
@@ -191,14 +245,16 @@ Database/backups/
 Run:
 
 ```bash
-cd Database
-
-python scripts/restore_database.py
+python Database/scripts/restore_database.py
 ```
 
-This restores the database schema from `schema.sql`.
+The restore script:
 
-For complete instructions, refer to:
+- Connects to the configured Neon PostgreSQL database
+- Restores the generated SQL backup
+- Reports restore warnings or errors when applicable
+
+For complete instructions, see:
 
 ```text
 Database/docs/restore_guide.md
@@ -208,13 +264,13 @@ Database/docs/restore_guide.md
 
 # Running the Project
 
-After all project modules are available:
+Start all services:
 
 ```bash
 docker compose up --build
 ```
 
-To stop all services:
+Stop all services:
 
 ```bash
 docker compose down
@@ -244,13 +300,13 @@ Example branches:
 - backend-aashi
 - abhinaya-aiml-cv
 
-Each intern develops in an individual feature branch before creating a Pull Request and merging into the `main` branch.
+Each intern develops independently in their feature branch before creating a Pull Request.
 
 ---
 
 # Continuous Integration
 
-GitHub Actions performs a basic Continuous Integration (CI) check whenever code is pushed or a Pull Request is created.
+GitHub Actions automatically performs Continuous Integration (CI) checks whenever code is pushed or a Pull Request is created.
 
 Workflow location:
 
@@ -260,32 +316,96 @@ Workflow location:
 
 ---
 
-# Milestone 1 Status
+# Milestone Progress
 
-The project provides:
+## ✅ Milestone 1
+
+Completed:
 
 - User Authentication
 - Lesson Management
-- AI-based Sign Prediction
-- Assessment & Feedback
+- AI Predictions
+- Assessments
+- Feedback
 - Analytics
-- PostgreSQL Data Storage
-- Dockerized Development Environment
+- Docker Environment
+- PostgreSQL Database Design
+
+---
+
+## ✅ Milestone 2
+
+Completed:
+
+- Certificates
+- Recommendations
+- Weekly Analytics
+- Instructor-Student Mapping
+- Updated ER Diagram
+- Database Documentation
+
+---
+
+## ✅ Milestone 3 (Completed up to Day 5)
+
+### Day 1
+
+Completed:
+
+- Notifications Table
+- Badges Table
+- User Badges Table
+- Streaks Table
+
+### Day 2
+
+Completed:
+
+- Performance Indexes
+- Query Optimization
+
+### Day 3
+
+Completed:
+
+- Database Integration Tests
+
+### Day 4
+
+Completed:
+
+- Data Integrity Validation
+- Data Integrity Report
+
+### Day 5
+
+Completed:
+
+- Automated Database Backup
+- Automated Database Restore
+- Restore Documentation
+- Environment Variable Configuration
+- Neon PostgreSQL Support
 
 ---
 
 # Notes
 
-- Database schema is maintained by Intern 5.
-- Backup and restore utilities are included for database maintenance.
-- Full end-to-end execution requires contributions from all team members after merging all feature branches.
+- Database schema is maintained by **Intern 5 (Database & DevOps)**.
+- The project uses **Neon PostgreSQL** as the primary cloud database.
+- Backup and Restore utilities support Neon PostgreSQL.
+- Integration testing scripts are included.
+- Data integrity validation scripts are included.
+- Full end-to-end execution requires all team branches to be merged.
 
 ---
 
 # Author
 
-Prepared as part of **Milestone 1** for the AI-Powered Sign Language Learning & Assessment Platform.
+Prepared as part of the
+
+**AI-Powered Sign Language Learning & Assessment Platform**
 
 **Database & DevOps**
 
-Intern 5
+**Intern 5**

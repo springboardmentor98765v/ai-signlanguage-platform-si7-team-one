@@ -128,3 +128,5 @@ __marimo__/
 
 Database/backups/*
 !Database/backups/.gitkeep
+
+.env
