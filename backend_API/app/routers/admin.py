@@ -1,10 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException
+import csv
+import io
+
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
+
 from app.database.session import get_db
 from app.models.user import User
 from app.models.role import Role
 from app.models.user_role import UserRole
+from app.models.lesson import Lesson
 from app.core.security import require_role
+from app.schemas.admin_bulk import (
+    BulkUserActionRequest, BulkUserActionResponse, BulkLessonUploadResult
+)
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -58,23 +66,16 @@ def change_user_role(
     return {"message": f"Role '{role_name}' added to user"}
 
 
-import csv
-import io
-
-from fastapi import UploadFile, File
-from app.schemas.admin_bulk import (
-    BulkUserActionRequest, BulkUserActionResponse, BulkLessonUploadResult
-)
-from app.models.user import User
-from app.models.lesson import Lesson
-from app.dependencies.roles import require_instructor_or_admin  # or your admin-only dependency
-
+# ---------------------------------------------------------------------------
+# Milestone 3 - Day 4: Bulk admin operations
+# Admin-only (not instructor) — matches gating of other endpoints in this file
+# ---------------------------------------------------------------------------
 
 @router.post("/users/bulk-action", response_model=BulkUserActionResponse)
 def bulk_user_action(
     payload: BulkUserActionRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_instructor_or_admin),
+    _: User = Depends(require_role("admin")),
 ):
     if payload.action not in ("activate", "deactivate"):
         raise HTTPException(status_code=400, detail="action must be 'activate' or 'deactivate'")
@@ -99,7 +100,7 @@ def bulk_user_action(
 async def bulk_upload_lessons(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_instructor_or_admin),
+    _: User = Depends(require_role("admin")),
 ):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be a CSV")
@@ -110,7 +111,6 @@ async def bulk_upload_lessons(
 
     created_count = 0
     failed_rows = []
-
     required_fields = {"module_id", "title", "sequence_order"}
 
     for i, row in enumerate(reader, start=1):

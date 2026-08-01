@@ -23,6 +23,7 @@ from app.core.security import (
     generate_refresh_token, hash_refresh_token,
 )
 from app.core.limiter import limiter
+from app.core.account_rate_limiter import is_rate_limited, reset_attempts  # M3 Day 6
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -79,15 +80,27 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
     "/login",
     response_model=TokenPairResponse,
     summary="Log in and receive access + refresh tokens",
-    description="Rate limited to 5 attempts per minute per IP to prevent brute-force attacks. "
-                 "Roles are embedded in the access token at login time. "
+    description="Rate limited to 5 attempts per minute per IP (M2), and separately to 5 "
+                 "attempts per minute per account (M3 Day 6) to prevent brute-force attacks "
+                 "that rotate IPs. Roles are embedded in the access token at login time. "
                  "Use the refresh token with /auth/refresh to get a new access token without re-entering credentials.",
 )
 @limiter.limit("5/minute")
 def login(request: Request, payload: UserLogin, db: Session = Depends(get_db)):
+    # M3 Day 6 — per-account rate limit, independent of caller's IP
+    account_key = f"login:{payload.email.lower()}"
+    if is_rate_limited(account_key, max_attempts=5, window_seconds=60):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many login attempts for this account. Please try again in a minute.",
+        )
+
     user = db.query(User).filter(User.email == payload.email).first()
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    # Successful login — clear this account's failed-attempt counter
+    reset_attempts(account_key)
 
     roles = get_user_roles(user)
     access_token = create_access_token({"sub": str(user.user_id), "roles": roles})
@@ -238,9 +251,18 @@ def change_password(
 @router.post(
     "/forgot-password",
     summary="Request a password reset link",
-    description="Free-tier approach: reset link is printed to the server console instead of emailed.",
+    description="Free-tier approach: reset link is printed to the server console instead of emailed. "
+                 "Rate limited to 3 requests per hour per account (M3 Day 6) to prevent reset-email spam.",
 )
 def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    # M3 Day 6 — per-account rate limit, stricter window since this sends a "reset email"
+    account_key = f"password_reset:{payload.email.lower()}"
+    if is_rate_limited(account_key, max_attempts=3, window_seconds=3600):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many password reset requests. Please try again later.",
+        )
+
     user = db.query(User).filter(User.email == payload.email).first()
     if not user:
         # Don't reveal whether email exists — security best practice

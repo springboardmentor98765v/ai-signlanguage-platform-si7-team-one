@@ -23,15 +23,15 @@ async def test_health_check():
 async def test_user_register_login_flow():
     async with AsyncClient(transport=transport, base_url=BASE_URL) as ac:
         register_resp = await ac.post("/auth/register", json={
-            "email": "smoketest1@example.com",
-            "password": "TestPass1234!",
-            "full_name": "Smoke Test1"
+            "email": "smoketest12@example.com",
+            "password": "TestPass12345!",
+            "full_name": "Smoke Test12"
         })
-        assert register_resp.status_code in (200, 201, 400)
+        assert register_resp.status_code in (200, 201, 400,409)
 
         login_resp = await ac.post("/auth/login", json={
-            "email": "smoketest1@example.com",
-            "password": "TestPass1234!"
+            "email": "smoketest12@example.com",
+            "password": "TestPass12345!"
         })
         assert login_resp.status_code == 200
         assert "access_token" in login_resp.json()

@@ -46,7 +46,6 @@ def db_session():
 
 @pytest.fixture
 def test_user(db_session):
-    """Creates (or reuses) a test learner user for notification tests."""
     email = "notif_test_user@example.com"
     user = db_session.query(User).filter(User.email == email).first()
     if not user:
@@ -59,11 +58,17 @@ def test_user(db_session):
         db_session.commit()
         db_session.refresh(user)
 
-        # Link to "learner" role via the UserRole join table
         role = db_session.query(Role).filter(Role.role_name == "learner").first()
         link = UserRole(user_id=user.user_id, role_id=role.role_id)
         db_session.add(link)
         db_session.commit()
+
+    # Always reset to active — a previous test run may have deactivated this
+    # shared user (e.g. bulk-action test), so guarantee a clean state here.
+    if not user.is_active:
+        user.is_active = True
+        db_session.commit()
+        db_session.refresh(user)
 
     return user
 
