@@ -7,7 +7,7 @@ class RecommendationItem(BaseModel):
     sign: str
     reason: str
     recent_accuracy: float      # accuracy % across the last N attempts
-    attempts_checked: int       # how many recent attempts were looked at
+    attempts_checked: float       # how many recent attempts were looked at
 
 
 class RecommendationOut(BaseModel):
