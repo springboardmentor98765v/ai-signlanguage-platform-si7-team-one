@@ -2,7 +2,7 @@ import os
 import cv2
 import joblib
 import mediapipe as mp
-
+from movement_tracker import MovementTracker
 # ==============================
 # Load Model
 # ==============================
@@ -14,7 +14,7 @@ ENCODER_PATH = os.path.join(BASE_DIR, "..", "models", "label_encoder.pkl")
 
 model = joblib.load(MODEL_PATH)
 encoder = joblib.load(ENCODER_PATH)
-
+tracker = MovementTracker()
 # ==============================
 # MediaPipe
 # ==============================
@@ -49,6 +49,7 @@ while True:
     results = hands.process(rgb)
 
     prediction = "No Hand"
+    action = None
 
     if results.multi_hand_landmarks:
 
@@ -68,6 +69,25 @@ while True:
                 lm.y,
                 lm.z
             ])
+        # Wrist landmark
+        # ---------------------------------
+# Palm Center
+# ---------------------------------
+
+        # Palm center
+        indices = [0, 5, 9, 13, 17]
+
+        x = 0
+        y = 0
+
+        for i in indices:
+            x += hand.landmark[i].x
+            y += hand.landmark[i].y
+
+        x /= len(indices)
+        y /= len(indices)
+
+        action = tracker.update(x, y)
 
         pred = model.predict([features])
 
@@ -76,10 +96,22 @@ while True:
     cv2.putText(
         frame,
         f"Prediction : {prediction}",
-        (20,40),
+        (20, 40),
         cv2.FONT_HERSHEY_SIMPLEX,
         1,
-        (0,255,0),
+        (0, 255, 0),
+        2
+    )
+
+    display_action = action if action else "Waiting..."
+
+    cv2.putText(
+        frame,
+        f"Action : {display_action}",
+        (20, 80),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        1,
+        (255, 0, 0),
         2
     )
 
