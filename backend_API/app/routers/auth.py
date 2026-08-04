@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
+from app.models import user
 from app.models.user import User
 from app.models.role import Role
 from app.models.user_role import UserRole
@@ -99,8 +100,20 @@ def login(request: Request, payload: UserLogin, db: Session = Depends(get_db)):
         )
 
     user = db.query(User).filter(User.email == payload.email).first()
+
+    print("===== LOGIN DEBUG =====")
+    print("Email:", payload.email)
+    print("User found:", user is not None)
+
+    if user:
+        print("Password valid:", verify_password(payload.password, user.password_hash))
+        print("Active:", user.is_active)
+
     if not user or not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+    )
 
     # M3 Day 8 fix — block deactivated accounts from logging in at all,
     # not just from using an already-issued token on protected endpoints
