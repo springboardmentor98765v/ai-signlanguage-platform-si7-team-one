@@ -78,14 +78,14 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
         created_at=new_user.created_at,
     )
 
-
 @router.post(
     "/login",
     response_model=TokenPairResponse,
     summary="Log in and receive access + refresh tokens",
     description="Rate limited to 5 attempts per minute per IP (M2), and separately to 5 "
                  "attempts per minute per account (M3 Day 6) to prevent brute-force attacks "
-                 "that rotate IPs. Roles are embedded in the access token at login time. "
+                 "that rotate IPs. Deactivated accounts are blocked from logging in. "
+                 "Roles are embedded in the access token at login time. "
                  "Use the refresh token with /auth/refresh to get a new access token without re-entering credentials.",
 )
 @limiter.limit("5/minute")
@@ -101,6 +101,11 @@ def login(request: Request, payload: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == payload.email).first()
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    # M3 Day 8 fix — block deactivated accounts from logging in at all,
+    # not just from using an already-issued token on protected endpoints
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is inactive")
 
     # Successful login — clear this account's failed-attempt counter
     reset_attempts(account_key)
@@ -127,7 +132,6 @@ def login(request: Request, payload: UserLogin, db: Session = Depends(get_db)):
             created_at=user.created_at,
         ),
     )
-
 
 @router.post(
     "/refresh",
