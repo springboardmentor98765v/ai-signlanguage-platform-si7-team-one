@@ -41,7 +41,9 @@ reset_tokens: dict[str, str] = {}  # token -> user_email
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Register a new user",
-    description="Creates a new user account with the default 'learner' role. "
+    description="Creates a new user account.Role can be 'learner' (default) or "
+                 "'instructor'. Admin accounts cannot be self-registered — they must "
+                 "be promoted by an existing admin via /admin/users/{user_id}/role. "
                  "Password is hashed with bcrypt before storage.",
 )
 def register(payload: UserRegister, db: Session = Depends(get_db)):
@@ -57,11 +59,12 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
     db.add(new_user)
     db.flush()
 
-    role = db.query(Role).filter(Role.role_name == DEFAULT_ROLE).first()
+    role_name = payload.requested_role or DEFAULT_ROLE
+    role = db.query(Role).filter(Role.role_name == role_name).first()
     if not role:
         raise HTTPException(
             status_code=500,
-            detail=f"Setup error: default role '{DEFAULT_ROLE}' is missing. Contact an administrator.",
+            detail=f"Setup error: role '{role_name}' is missing. Contact an administrator.",
         )
     db.add(UserRole(user_id=new_user.user_id, role_id=role.role_id))
     db.commit()
@@ -71,7 +74,7 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
         user_id=new_user.user_id,
         full_name=new_user.full_name,
         email=new_user.email,
-        roles=[DEFAULT_ROLE],
+        roles=[role_name],
         created_at=new_user.created_at,
     )
 
