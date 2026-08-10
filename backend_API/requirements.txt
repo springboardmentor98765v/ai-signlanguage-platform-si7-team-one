@@ -1,10 +1,26 @@
 fastapi
+<<<<<<< HEAD
 uvicorn[standard]
 python-jose[cryptography]
 passlib[bcrypt]
 bcrypt==4.0.1
 pydantic
 pydantic-settings
+=======
+uvicorn
+>>>>>>> origin/main
 sqlalchemy
-python-dotenv
 psycopg2-binary
+python-dotenv
+<<<<<<< HEAD
+psycopg2-binary
+=======
+pydantic
+python-jose
+passlib
+bcrypt
+slowapi
+httpx
+pytest
+pytest-asyncio
+>>>>>>> origin/main
