@@ -1,65 +1,113 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+
 import cv2
 import mediapipe as mp
 import numpy as np
 import joblib
 import os
-
 import time
+
 from .feedback import generate_feedback
 from .quality import analyze_hand_quality
 from .history import add_prediction, get_history, clear_history
 from .analytics import get_analytics
 from .dashboard import get_dashboard
-from fastapi.middleware.cors import CORSMiddleware
+
 
 # ==================================================
 # FastAPI App
 # ==================================================
 
-app = FastAPI(title="Sign Language Prediction API")
+app = FastAPI(
+    title="Sign Language Prediction API",
+    description="AI/ML API for ASL alphabet gesture recognition",
+    version="1.0.0"
+)
+
+
+# ==================================================
+# CORS
+# ==================================================
 
 app.add_middleware(
     CORSMiddleware,
+
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ],
+
     allow_credentials=True,
+
     allow_methods=["*"],
+
     allow_headers=["*"],
 )
+
 
 # ==================================================
 # Paths
 # ==================================================
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(
+    os.path.abspath(__file__)
+)
 
-MODEL_PATH = os.path.join(BASE_DIR, "..", "models", "xgboost_landmark.pkl")
-ENCODER_PATH = os.path.join(BASE_DIR, "..", "models", "label_encoder.pkl")
+MODEL_PATH = os.path.join(
+    BASE_DIR,
+    "..",
+    "models",
+    "xgboost_landmark.pkl"
+)
+
+ENCODER_PATH = os.path.join(
+    BASE_DIR,
+    "..",
+    "models",
+    "label_encoder.pkl"
+)
+
 
 # ==================================================
 # Load Model
 # ==================================================
 
-model = joblib.load(MODEL_PATH)
-label_encoder = joblib.load(ENCODER_PATH)
+try:
 
-print("Model Loaded Successfully!")
+    model = joblib.load(
+        MODEL_PATH
+    )
+
+    label_encoder = joblib.load(
+        ENCODER_PATH
+    )
+
+    print("Model Loaded Successfully!")
+
+except Exception as e:
+
+    print(
+        "Model loading failed:",
+        str(e)
+    )
+
+    raise
+
 
 # ==================================================
 # MediaPipe
 # ==================================================
 
 mp_hands = mp.solutions.hands
-mp_draw = mp.solutions.drawing_utils
 
 hands = mp_hands.Hands(
     static_image_mode=True,
     max_num_hands=1,
-    min_detection_confidence=0.3
+    min_detection_confidence=0.3,
+    min_tracking_confidence=0.3
 )
+
 
 # ==================================================
 # Home API
@@ -67,9 +115,28 @@ hands = mp_hands.Hands(
 
 @app.get("/")
 def home():
+
     return {
+        "success": True,
         "message": "Sign Language Prediction API is Running"
     }
+
+
+# ==================================================
+# Health API
+# ==================================================
+
+@app.get("/health")
+def health():
+
+    return {
+        "status": "healthy",
+        "model_loaded": model is not None,
+        "classes": len(
+            label_encoder.classes_
+        )
+    }
+
 
 # ==================================================
 # Feature Extraction
@@ -77,38 +144,66 @@ def home():
 
 def extract_features(image):
 
-    rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    # --------------------------------------------------
+    # Convert BGR → RGB
+    # --------------------------------------------------
 
-    results = hands.process(rgb)
-
-    print("Detection Result :", results.multi_hand_landmarks)
-
-    if not results.multi_hand_landmarks:
-        return None
-
-    hand = results.multi_hand_landmarks[0]
-    quality = analyze_hand_quality(hand)
-
-    # Draw landmarks for debugging
-    debug = image.copy()
-    mp_draw.draw_landmarks(
-        debug,
-        hand,
-        mp_hands.HAND_CONNECTIONS
+    rgb = cv2.cvtColor(
+        image,
+        cv2.COLOR_BGR2RGB
     )
 
-    cv2.imwrite("detected_hand.jpg", debug)
+    # --------------------------------------------------
+    # MediaPipe hand detection
+    # --------------------------------------------------
+
+    results = hands.process(
+        rgb
+    )
+
+    # --------------------------------------------------
+    # No hand detected
+    # --------------------------------------------------
+
+    if not results.multi_hand_landmarks:
+
+        return None
+
+    # --------------------------------------------------
+    # Get first detected hand
+    # --------------------------------------------------
+
+    hand = results.multi_hand_landmarks[0]
+
+    # --------------------------------------------------
+    # Analyze hand quality
+    # --------------------------------------------------
+
+    quality = analyze_hand_quality(
+        hand
+    )
+
+    # --------------------------------------------------
+    # Extract 21 landmarks
+    #
+    # Each landmark:
+    # x, y, z
+    #
+    # 21 × 3 = 63 features
+    # --------------------------------------------------
 
     features = []
 
-    for lm in hand.landmark:
+    for landmark in hand.landmark:
+
         features.extend([
-            lm.x,
-            lm.y,
-            lm.z
+            landmark.x,
+            landmark.y,
+            landmark.z
         ])
 
     return features, quality
+
 
 # ==================================================
 # Prediction
@@ -116,84 +211,333 @@ def extract_features(image):
 
 def predict(features):
 
-    features = np.array(features).reshape(1, -1)
+    # --------------------------------------------------
+    # Convert features to numpy array
+    # --------------------------------------------------
 
-    prediction = model.predict(features)[0]
+    features = np.asarray(
+        features,
+        dtype=np.float32
+    ).reshape(1, -1)
 
-    confidence = float(model.predict_proba(features).max())
+    # --------------------------------------------------
+    # Predict class
+    # --------------------------------------------------
 
-    label = label_encoder.inverse_transform([prediction])[0]
+    prediction = model.predict(
+        features
+    )[0]
+
+    # --------------------------------------------------
+    # Get prediction probabilities
+    # --------------------------------------------------
+
+    probabilities = model.predict_proba(
+        features
+    )[0]
+
+    # --------------------------------------------------
+    # Highest probability
+    # --------------------------------------------------
+
+    confidence = float(
+        np.max(probabilities)
+    )
+
+    # --------------------------------------------------
+    # Convert encoded value to letter
+    # --------------------------------------------------
+
+    label = label_encoder.inverse_transform(
+        [prediction]
+    )[0]
 
     return label, confidence
+
+
 # ==================================================
 # Predict API
 # ==================================================
 
 @app.post("/predict")
-async def predict_sign(file: UploadFile = File(...)):
+async def predict_sign(
+    file: UploadFile = File(...)
+):
 
-    start_time = time.time()
+    # ==================================================
+    # Start timer
+    # ==================================================
+
+    start_time = time.perf_counter()
+
+    # ==================================================
+    # Validate file type
+    # ==================================================
+
+    if not file.content_type:
+
+        raise HTTPException(
+            status_code=400,
+            detail="File type could not be determined."
+        )
+
+    if not file.content_type.startswith(
+        "image/"
+    ):
+
+        raise HTTPException(
+            status_code=400,
+            detail="Please upload a valid image file."
+        )
+
+    # ==================================================
+    # Read uploaded file
+    # ==================================================
 
     image_bytes = await file.read()
 
-    image_array = np.frombuffer(image_bytes, np.uint8)
+    if not image_bytes:
 
-    image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+        raise HTTPException(
+            status_code=400,
+            detail="Uploaded image is empty."
+        )
 
-    # Improve uploaded image quality
-    image = cv2.resize(image, (640, 640))
-    image = cv2.convertScaleAbs(image, alpha=1.2, beta=25)
+    # ==================================================
+    # Convert image bytes to numpy
+    # ==================================================
+
+    image_array = np.frombuffer(
+        image_bytes,
+        dtype=np.uint8
+    )
+
+    # ==================================================
+    # Decode image
+    # ==================================================
+
+    image = cv2.imdecode(
+        image_array,
+        cv2.IMREAD_COLOR
+    )
+
+    # IMPORTANT:
+    # Check image BEFORE resize
+    # ==================================================
 
     if image is None:
-        return {
-            "success": False,
-            "message": "Invalid image"
-        }
 
-    # Save uploaded image for debugging
-    cv2.imwrite("uploaded_image.jpg", image)
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or unsupported image."
+        )
 
-    result = extract_features(image)
+    # ==================================================
+    # Resize image
+    # ==================================================
+
+    image = cv2.resize(
+        image,
+        (640, 640),
+        interpolation=cv2.INTER_AREA
+    )
+
+    # ==================================================
+    # Improve brightness slightly
+    # ==================================================
+
+    image = cv2.convertScaleAbs(
+        image,
+        alpha=1.2,
+        beta=25
+    )
+
+    # ==================================================
+    # Extract hand features
+    # ==================================================
+
+    result = extract_features(
+        image
+    )
+
+    # ==================================================
+    # No hand detected
+    # ==================================================
 
     if result is None:
+
+        processing_time = round(
+            (
+                time.perf_counter()
+                - start_time
+            ) * 1000,
+            2
+        )
+
         return {
+
             "success": False,
-            "message": "No hand detected"
+
+            "prediction": None,
+
+            "confidence": 0.0,
+
+            "confidence_level": "LOW",
+
+            "status": "NO_HAND",
+
+            "feedback": "No hand detected.",
+
+            "possible_issue":
+                "The hand is not visible to the camera.",
+
+            "recommendation":
+                "Please show your hand clearly inside the camera frame.",
+
+            "processing_time_ms":
+                processing_time
         }
+
+    # ==================================================
+    # Get features and quality
+    # ==================================================
+
     features, quality = result
 
-    label, confidence = predict(features)
+    # ==================================================
+    # Predict gesture
+    # ==================================================
 
-    feedback = generate_feedback(confidence)
+    label, confidence = predict(
+        features
+    )
 
-    processing_time = round((time.time() - start_time) * 1000, 2)
+    # ==================================================
+    # Generate confidence feedback
+    # ==================================================
+
+    feedback = generate_feedback(
+        confidence
+    )
+
+    # ==================================================
+    # Calculate processing time
+    # ==================================================
+
+    processing_time = round(
+        (
+            time.perf_counter()
+            - start_time
+        ) * 1000,
+        2
+    )
+
+    # ==================================================
+    # Get hand recommendation
+    # ==================================================
+
+    recommendation = quality.get(
+        "suggestion"
+    )
+
+    # ==================================================
+    # Save prediction history
+    # ==================================================
 
     record = {
-    "prediction": label,
-    "confidence": round(confidence, 4),
-    "confidence_level": feedback["confidence_level"],
-    "status": feedback["status"],
-    "gesture_quality": quality["gesture_quality"],
-    "processing_time_ms": processing_time
+
+        "prediction": label,
+
+        "confidence": round(
+            confidence,
+            4
+        ),
+
+        "confidence_level":
+            feedback["confidence_level"],
+
+        "status":
+            feedback["status"],
+
+        "gesture_quality":
+            quality["gesture_quality"],
+
+        "processing_time_ms":
+            processing_time
     }
 
-    add_prediction(record)
+    add_prediction(
+        record
+    )
 
+    # ==================================================
+    # Final API response
+    # ==================================================
 
     return {
-    "success": True,
-    "prediction": label,
-    "confidence": round(confidence * 100, 2),
-    "confidence_level": feedback["confidence_level"],
-    "status": feedback["status"],
-    "feedback": feedback["feedback"],
-    "possible_issue": feedback["possible_issue"],
-    "processing_time_ms": processing_time,
-    "hand_position": quality["hand_position"],
-    "hand_distance": quality["hand_distance"],
-    "gesture_quality": quality["gesture_quality"],
-    "suggestion": quality["suggestion"]
-}
+
+        "success": True,
+
+        # ------------------------------
+        # Prediction
+        # ------------------------------
+
+        "prediction": label,
+
+        # ------------------------------
+        # Confidence
+        # ------------------------------
+
+        "confidence": round(
+            confidence * 100,
+            2
+        ),
+
+        "confidence_level":
+            feedback["confidence_level"],
+
+        # ------------------------------
+        # Model feedback
+        # ------------------------------
+
+        "status":
+            feedback["status"],
+
+        "feedback":
+            feedback["feedback"],
+
+        "possible_issue":
+            feedback["possible_issue"],
+
+        # ------------------------------
+        # Hand guidance
+        # ------------------------------
+
+        "recommendation":
+            recommendation,
+
+        "suggestion":
+            recommendation,
+
+        "hand_position":
+            quality["hand_position"],
+
+        "vertical_position":
+            quality["vertical_position"],
+
+        "hand_distance":
+            quality["hand_distance"],
+
+        "gesture_quality":
+            quality["gesture_quality"],
+
+        # ------------------------------
+        # Performance
+        # ------------------------------
+
+        "processing_time_ms":
+            processing_time
+    }
 
 
 # ==================================================
@@ -202,9 +546,16 @@ async def predict_sign(file: UploadFile = File(...)):
 
 @app.get("/history")
 def history():
+
+    history_data = get_history()
+
     return {
-        "total_predictions": len(get_history()),
-        "history": get_history()
+
+        "total_predictions":
+            len(history_data),
+
+        "history":
+            history_data
     }
 
 
@@ -214,14 +565,27 @@ def history():
 
 @app.delete("/history")
 def delete_history():
+
     clear_history()
+
     return {
-        "message": "Prediction history cleared successfully."
+
+        "success": True,
+
+        "message":
+            "Prediction history cleared successfully."
     }
+
+
+# ==================================================
+# Analytics API
+# ==================================================
 
 @app.get("/analytics")
 def analytics():
+
     return get_analytics()
+
 
 # ==================================================
 # Dashboard API
