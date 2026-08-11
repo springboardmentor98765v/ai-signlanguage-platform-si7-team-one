@@ -11,3 +11,5 @@ slowapi
 httpx
 pytest
 pytest-asyncio
+email-validator
+python-multipart
