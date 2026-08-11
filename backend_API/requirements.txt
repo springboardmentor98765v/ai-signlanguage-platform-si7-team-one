@@ -9,3 +9,9 @@ sqlalchemy
 python-dotenv
 psycopg2-binary
 slowapi
+httpx
+pytest
+pytest-asyncio
+email-validator
+python-multipart
+
