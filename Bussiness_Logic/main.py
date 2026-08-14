@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import practice, assessment, feedback, analytics, recommendation, certificate, progress, gamification, leaderboard, notification, export, certification
+from app.routers import practice, assessment, feedback, analytics, recommendation, certificate, progress, gamification, leaderboard, notification, export, certification, trainer_analytics
 
 app = FastAPI(title="Practice Service (dev)")
 
@@ -29,6 +29,7 @@ app.include_router(leaderboard.router)
 app.include_router(notification.router)
 app.include_router(export.router)
 app.include_router(certification.router)
+app.include_router(trainer_analytics.router)
 
 
 @app.get("/health")
