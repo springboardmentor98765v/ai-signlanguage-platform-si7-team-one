@@ -13,7 +13,7 @@ import { loginUser, USE_MOCKS } from "../services/api";
 
 export default function LoginScreen({
   onLogin, goSignup,
-}: { onLogin: (r: Role, userId?: string) => void; goSignup: () => void }) {
+}: { onLogin: (r: Role, token?: string, userId?: string, fullName?: string) => void; goSignup: () => void }) {
   const [email, setEmail] = useState("maya.chen@example.com");
   const [pw, setPw] = useState("password123");
   const [show, setShow] = useState(false);
@@ -26,10 +26,10 @@ export default function LoginScreen({
     setError(null);
     try {
       if (USE_MOCKS) localStorage.setItem("role", selectedRole);
-      const data = await loginUser({ email, password: pw });
-      onLogin(data.role as Role, data.user?.user_id);
+      const data = await loginUser({ email, password: pw, role: selectedRole });
+      onLogin(data.role as Role, data.access_token, data.user?.user_id, data.user?.full_name);
     } catch (e) {
-      setError("Invalid email or password. Please try again.");
+      setError(e.message || "Invalid email or password. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -86,9 +86,8 @@ export default function LoginScreen({
               <button
                 key={r}
                 onClick={() => setSelectedRole(r)}
-                className={`flex-1 py-1.5 text-[11px] font-semibold rounded-lg capitalize transition-all ${
-                  selectedRole === r ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                }`}
+                className={`flex-1 py-1.5 text-[11px] font-semibold rounded-lg capitalize transition-all ${selectedRole === r ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
               >
                 {r}
               </button>

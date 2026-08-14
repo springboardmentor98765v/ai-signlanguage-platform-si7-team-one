@@ -142,7 +142,7 @@ export async function getUserAnalytics(userId) {
       user_id: userId,
       total_sessions: 24,
       lessons_completed: 18,
-      average_accuracy: 0.91,
+      average_accuracy: 91,
       weak_signs: ["R", "M", "N", "Q", "X"],
     });
   }
@@ -157,15 +157,15 @@ export async function getWeeklyAnalytics(userId) {
     return delay({
       user_id: userId,
       weeks: [
-        { week_label: "Wk 1", sessions_count: 3, average_accuracy: 0.72, weak_signs: ["R", "X"] },
-        { week_label: "Wk 2", sessions_count: 4, average_accuracy: 0.78, weak_signs: ["M", "N"] },
-        { week_label: "Wk 3", sessions_count: 5, average_accuracy: 0.83, weak_signs: ["Q"] },
-        { week_label: "Wk 4", sessions_count: 6, average_accuracy: 0.88, weak_signs: [] },
-        { week_label: "Wk 5", sessions_count: 4, average_accuracy: 0.91, weak_signs: [] },
+        { week_label: "Wk 1", sessions_count: 3, average_accuracy: 72, weak_signs: ["R", "X"] },
+        { week_label: "Wk 2", sessions_count: 4, average_accuracy: 78, weak_signs: ["M", "N"] },
+        { week_label: "Wk 3", sessions_count: 5, average_accuracy: 83, weak_signs: ["Q"] },
+        { week_label: "Wk 4", sessions_count: 6, average_accuracy: 88, weak_signs: [] },
+        { week_label: "Wk 5", sessions_count: 4, average_accuracy: 91, weak_signs: [] },
       ],
-      improvement_rate: 0.19,
-      current_week_accuracy: 0.91,
-      previous_week_accuracy: 0.88,
+      improvement_rate: 19,
+      current_week_accuracy: 91,
+      previous_week_accuracy: 88,
     });
   }
   return businessRequest(`/analytics/${userId}/weekly`);
@@ -185,13 +185,13 @@ export async function getProgressReport(userId) {
       total_sessions: 24,
       completed_sessions: 21,
       total_practice_time_seconds: 86400,
-      average_accuracy: 0.91,
+      average_accuracy: 91,
       grade: "A",
       distinct_signs_practiced: 18,
       weak_signs: ["R", "M", "N", "Q", "X"],
       strong_signs: ["A", "B", "C", "D", "E", "L", "Y"],
-      current_week_accuracy: 0.91,
-      improvement_rate: 0.19,
+      current_week_accuracy: 91,
+      improvement_rate: 19,
       recommended_for_practice: ["R", "M", "N"],
       certificate_eligible: false,
       certificate_reasons_failed: ["Average accuracy below 80% for letters R, M, N"],
@@ -256,7 +256,16 @@ export async function generateCertificate(userId, learnerName) {
   }
   return res.blob();
 }
-
+export async function getRecommendations(userId) {
+  if (BUSINESS_USE_MOCKS) {
+    return {
+      user_id: userId,
+      recommendations: [],
+      total_recommended: 0,
+    };
+  }
+  return businessRequest(`/recommendations/${userId}`);
+}
 // ── M3: Gamification / Leaderboard / Notifications / Export ─────────────
 export async function getGamification(userId) {
   if (BUSINESS_USE_MOCKS) {
@@ -342,5 +351,19 @@ export async function downloadClassSummaryExport(format = "csv") {
     },
   });
   if (!res.ok) throw new Error(`Class export failed: ${res.status}`);
+  return res.blob();
+}
+
+// GET /export/class/summary?format=csv|excel -> file blob (instructor use)
+export async function exportClassSummary(format = "csv") {
+  if (BUSINESS_USE_MOCKS) {
+    const csv = "Student,Accuracy,Streak\nMarcus Johnson,88,7\nPriya Patel,62,2";
+    return new Blob([csv], { type: "text/csv" });
+  }
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${BUSINESS_BASE_URL}/export/class/summary?format=${format}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(`Export failed: ${res.status}`);
   return res.blob();
 }

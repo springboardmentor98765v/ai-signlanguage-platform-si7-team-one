@@ -7,7 +7,7 @@
 // USE_MOCKS.
 
 const BASE_URL = "http://localhost:8000";
-export const USE_MOCKS = true; // flip to false once backend is reachable
+export const USE_MOCKS = false; // flip to false once backend is reachable
 
 function getToken() {
   return localStorage.getItem("token");
@@ -52,11 +52,11 @@ export async function registerUser({ name, email, password, role }) {
   // Returns 201 + a full UserResponse, not just { message }.
   return request("/auth/register", {
     method: "POST",
-    body: JSON.stringify({ full_name: name, email, password }),
+    body: JSON.stringify({ full_name: name, email, password,role }),
   });
 }
 
-export async function loginUser({ email, password }) {
+export async function loginUser({ email, password, role }) {
   if (USE_MOCKS) {
     const data = {
       access_token: "mock-jwt-token",
@@ -73,16 +73,14 @@ export async function loginUser({ email, password }) {
     localStorage.setItem("role", data.user.roles[0]);
     return { ...data, role: data.user.roles[0] };
   }
-  // Real endpoint returns { access_token, user: { ...UserResponse, roles: [] } }
-  // — role comes back directly here, no separate /auth/profile call needed.
   const data = await request("/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, role }),
   });
   localStorage.setItem("token", data.access_token);
-  const role = data.user?.roles?.[0] ?? "learner";
-  localStorage.setItem("role", role);
-  return { ...data, role };
+  const returnedRole = data.user?.roles?.[0] ?? "learner";
+  localStorage.setItem("role", returnedRole);
+  return { ...data, role: returnedRole };
 }
 
 export async function getProfile() {
@@ -121,8 +119,8 @@ export async function updateProfile({ fullName, email }) {
       created_at: new Date().toISOString(),
     });
   }
-  return request("/auth/profile", {
-    method: "PATCH",
+  return request("/auth/me", {
+    method: "PUT",
     body: JSON.stringify({ full_name: fullName, email }),
   });
 }
@@ -131,8 +129,8 @@ export async function changePassword({ oldPassword, newPassword }) {
   if (USE_MOCKS) {
     return delay({ message: "Password changed successfully." });
   }
-  return request("/auth/change-password", {
-    method: "POST",
+  return request("/auth/me/password", {
+    method: "PUT",
     body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
   });
 }

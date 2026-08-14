@@ -140,6 +140,20 @@ export default function Leaderboard({ go }: { go: (s: Screen) => void }) {
         <div className="bg-card border border-border rounded-xl p-8 text-center text-sm text-muted-foreground">
           Loading leaderboard…
         </div>
+      ) : accuracyLeaders.length === 0 ? (
+        <div className="bg-card border border-border rounded-xl p-8 text-center space-y-2">
+          <div className="text-sm font-semibold text-foreground">No leaderboard data yet</div>
+          <div className="text-xs text-muted-foreground">
+            Start practicing to appear on the leaderboard once the backend has session data.
+          </div>
+          <button
+            onClick={() => go("practice")}
+            className="mt-2 inline-flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-2 text-sm font-semibold text-foreground hover:bg-hover transition"
+          >
+            <Sparkles size={14} />
+            Practice now
+          </button>
+        </div>
       ) : (
         <div className="grid grid-cols-2 gap-4">
           <LeaderCard

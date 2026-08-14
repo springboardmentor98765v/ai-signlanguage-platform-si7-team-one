@@ -1,13 +1,25 @@
+import { useState, useEffect } from "react";
 import { Bell, Settings } from "lucide-react";
 import type { Role, Screen } from "../../lib/types";
 import { NAV } from "../../lib/nav";
-
+import { useAuth } from "../../context/AuthContext";
+import { getNotifications } from "../../services/businessApi";
 export function Sidebar({
   role, active, setScreen, open, onClose,
 }: {
   role: Role; active: Screen; setScreen: (s: Screen) => void;
   open: boolean; onClose: () => void;
 }) {
+    const { userId } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!userId) return;
+    getNotifications(userId)
+      .then((data) => setUnreadCount(data.unread_count ?? 0))
+      .catch(() => setUnreadCount(0));
+  }, [userId, active]); // re-fetch when navigating, so it updates after marking read
+
   return (
     <>
       {open && (
@@ -53,7 +65,7 @@ export function Sidebar({
 
         <div className="p-3 border-t border-sidebar-border space-y-0.5">
           {([
-            { screen: "notifications" as Screen, label: "Notifications", icon: Bell, badge: 3 },
+            { screen: "notifications" as Screen, label: "Notifications", icon: Bell, badge: unreadCount },
             { screen: "settings" as Screen,      label: "Settings",      icon: Settings },
           ]).map(({ screen, label, icon: Icon, badge }) => (
             <button
@@ -67,7 +79,7 @@ export function Sidebar({
             >
               <Icon size={16} strokeWidth={1.5} />
               {label}
-              {badge && (
+              {badge > 0 && (
                 <span className="ml-auto w-5 h-5 bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
                   {badge}
                 </span>

@@ -47,7 +47,10 @@ export default function NotificationsPanel() {
       {loading ? (
         <div className="p-6 text-center text-sm text-muted-foreground">Loading notifications…</div>
       ) : notifs.length === 0 ? (
-        <div className="p-6 text-center text-sm text-muted-foreground">No notifications yet.</div>
+        <div className="p-6 text-center space-y-2 rounded-xl border border-border bg-card">
+          <div className="text-sm font-semibold text-foreground">You’re all caught up</div>
+          <div className="text-sm text-muted-foreground">No unread notifications right now. New updates will appear here.</div>
+        </div>
       ) : (
         notifs.map((n, i) => (
           <div key={i} className={`p-4 rounded-xl border transition-all ${n.read ? "border-border bg-card opacity-60" : "border-primary/20 bg-primary/5"}`}>

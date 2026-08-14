@@ -4,7 +4,7 @@ export type Screen =
   | "assessment" | "feedback" | "progress" | "certificates"
   | "leaderboard"
   | "instructor-dashboard" | "course-management" | "student-detail"
-  | "trainer-console"
+  | "trainer-console" | "trainer-dashboard"
   | "admin-dashboard" | "user-management" | "system-monitoring"
   | "notifications" | "settings" | "camera-permission";
 

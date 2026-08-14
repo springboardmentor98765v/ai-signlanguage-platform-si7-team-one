@@ -8,11 +8,11 @@ import {
   SkipForward, Calendar, Lock, Mail, Check, ChevronLeft,
 } from "lucide-react";
 import type { Role } from "../lib/types";
-import { registerUser } from "../services/api";
+import { registerUser, loginUser } from "../services/api";
 
 export default function SignupScreen({
   onSignup, goLogin,
-}: { onSignup: () => void; goLogin: () => void }) {
+}: { onSignup: (role: Role, token: string, userId: string) => void; goLogin: () => void }) {
   const [role, setRole] = useState<Role>("learner");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -25,9 +25,12 @@ export default function SignupScreen({
     setError(null);
     try {
       await registerUser({ name, email, password, role });
-      onSignup();
+      // Registration doesn't return a token — log in immediately after
+      // to get a real access token, matching the role just registered.
+      const loginData = await loginUser({ email, password, role });
+      onSignup(loginData.role as Role, loginData.access_token, loginData.user?.user_id);
     } catch (e) {
-      setError("Couldn't create your account. That email may already be registered.");
+      setError(e.message || "Couldn't create your account. Please try again.");
     } finally {
       setLoading(false);
     }

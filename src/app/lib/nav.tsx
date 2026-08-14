@@ -19,6 +19,7 @@ export const NAV: Record<Role, { screen: Screen; label: string; icon: React.Elem
     { screen: "student-detail",       label: "Students",  icon: Users },
   ],
   trainer: [
+    { screen: "trainer-dashboard", label: "Dashboard", icon: Home },
     { screen: "trainer-console", label: "Console", icon: Activity },
   ],
   admin: [
@@ -37,6 +38,7 @@ export const SCREEN_LABELS: Record<Screen, string> = {
   "instructor-dashboard": "Instructor Dashboard",
   "course-management": "Course Management", "student-detail": "Student Detail",
   "trainer-console": "Trainer Console", "admin-dashboard": "Admin Dashboard",
+  "trainer-dashboard": "Accessibility Trainer Dashboard",
   "user-management": "User Management", "system-monitoring": "System Monitoring",
   notifications: "Notifications", settings: "Settings",
   "camera-permission": "Camera Permission",
@@ -61,6 +63,7 @@ export const SCREEN_PATH: Record<Screen, string> = {
   "instructor-dashboard": "/instructor",
   "course-management": "/instructor/courses", "student-detail": "/instructor/students",
   "trainer-console": "/trainer", "admin-dashboard": "/admin",
+  "trainer-dashboard": "/trainer/dashboard",
   "user-management": "/admin/users", "system-monitoring": "/admin/system",
   notifications: "/notifications", settings: "/settings",
   "camera-permission": "/camera-permission",

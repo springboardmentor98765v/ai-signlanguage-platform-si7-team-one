@@ -11,7 +11,9 @@ import type { Screen } from "../lib/types";
 import { MCard } from "../components/shared/MCard";
 import { Bdg, PBar, Ring } from "../components/shared/Indicators";
 import { getDashboard } from "../services/aiApi";
-import { accuracyData, lessonsCompleted, BADGES, STREAK } from "../lib/mockData";
+import { accuracyData, lessonsCompleted } from "../lib/mockData";
+import { useAuth } from "../context/AuthContext";
+import { getGamification } from "../services/businessApi";
 import {
   LineChart, Line, BarChart, Bar, ResponsiveContainer,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -27,8 +29,29 @@ interface RecentPrediction {
 }
 
 export default function LearnerDashboard({ go }: { go: (s: Screen) => void }) {
+  const { userId } = useAuth();
   const [recent, setRecent] = useState<RecentPrediction[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
+  const [accuracy, setAccuracy] = useState(0);
+  const [signsLearned, setSignsLearned] = useState(0);
+  const [practiceTime, setPracticeTime] = useState(0);
+  const [badgesEarned, setBadgesEarned] = useState(0);
+  const [gamification, setGamification] = useState<any>(null);
+  const [loadingGamification, setLoadingGamification] = useState(true);
+
+  useEffect(() => {
+    const timers = [
+      window.setInterval(() => setAccuracy((current) => (current >= 91 ? current : current + 1)), 18),
+      window.setInterval(() => setSignsLearned((current) => (current >= 248 ? current : current + 4)), 18),
+      window.setInterval(() => setPracticeTime((current) => (current >= 4.2 ? current : Math.min(Number((current + 0.1).toFixed(1)), 4.2))), 18),
+      window.setInterval(() => setBadgesEarned((current) => (current >= 7 ? current : current + 1)), 18),
+    ];
+    const done = window.setTimeout(() => timers.forEach(window.clearInterval), 800);
+    return () => {
+      timers.forEach(window.clearInterval);
+      window.clearTimeout(done);
+    };
+  }, []);
 
   useEffect(() => {
     getDashboard()
@@ -36,6 +59,14 @@ export default function LearnerDashboard({ go }: { go: (s: Screen) => void }) {
       .catch(() => setRecent([]))
       .finally(() => setLoadingRecent(false));
   }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    getGamification(userId)
+      .then(setGamification)
+      .catch(() => setGamification(null))
+      .finally(() => setLoadingGamification(false));
+  }, [userId]);
 
   return (
     <div className="p-6 space-y-5 max-w-6xl mx-auto">
@@ -52,10 +83,10 @@ export default function LearnerDashboard({ go }: { go: (s: Screen) => void }) {
       </div>
 
       <div className="grid grid-cols-4 gap-4">
-        <MCard icon={Target}   label="Overall Accuracy"  value="91%" delta="+3% this week"  col="cyan" />
-        <MCard icon={BookOpen} label="Signs Learned"     value="248" delta="+12 today"      col="emerald" />
-        <MCard icon={Clock}    label="Practice Time"     value="4.2h" delta="this week"     col="violet" />
-        <MCard icon={Award}    label="Badges Earned"     value="7"   delta="1 new"          col="amber" />
+        <MCard icon={Target}   label="Overall Accuracy"  value={`${Math.round(accuracy)}%`} delta="+3% this week"  col="cyan" />
+        <MCard icon={BookOpen} label="Signs Learned"     value={`${Math.round(signsLearned)}`} delta="+12 today"      col="emerald" />
+        <MCard icon={Clock}    label="Practice Time"     value={`${practiceTime.toFixed(1)}h`} delta="this week"     col="violet" />
+        <MCard icon={Award}    label="Badges Earned"     value={`${Math.round(badgesEarned)}`}   delta="1 new"          col="amber" />
       </div>
 
       <div className="grid grid-cols-3 gap-4">
@@ -128,50 +159,57 @@ export default function LearnerDashboard({ go }: { go: (s: Screen) => void }) {
         <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-foreground">Badges & Streaks</h3>
-            <Bdg label={`${STREAK.current} day streak`} v="success" />
++           <Bdg label={gamification ? `${gamification.streak.current_streak} day streak` : "Loading"} v="success" />
           </div>
+          {loadingGamification && <div className="h-40 bg-[#0e1a30] rounded-lg animate-pulse" />}
+         {!loadingGamification && !gamification && (
+           <p className="text-xs text-muted-foreground">Couldn't load badges/streak data — is the Business Logic service running on port 8002?</p>
+         )}
+         {!loadingGamification && gamification && (
+           <>
           <div className="grid grid-cols-3 gap-3 mb-4">
             <div className="rounded-xl border border-border bg-[#0e1a30] p-3 text-center">
               <div className="text-xs text-muted-foreground">Current</div>
-              <div className="text-2xl font-bold text-foreground mt-1">{STREAK.current}</div>
+              <div className="text-2xl font-bold text-foreground mt-1">{gamification.streak.current_streak}</div>
               <div className="text-xs text-muted-foreground mt-1">days</div>
             </div>
             <div className="rounded-xl border border-border bg-[#0e1a30] p-3 text-center">
               <div className="text-xs text-muted-foreground">Best</div>
-              <div className="text-2xl font-bold text-foreground mt-1">{STREAK.best}</div>
+              <div className="text-2xl font-bold text-foreground mt-1">{gamification.streak.longest_streak}</div>
               <div className="text-xs text-muted-foreground mt-1">days</div>
             </div>
             <div className="rounded-xl border border-border bg-[#0e1a30] p-3 text-center">
               <div className="text-xs text-muted-foreground">Unlocked</div>
-              <div className="text-2xl font-bold text-foreground mt-1">{BADGES.filter(b => b.earned).length}</div>
+              <div className="text-2xl font-bold text-foreground mt-1">{gamification.total_badges_earned}</div>
               <div className="text-xs text-muted-foreground mt-1">badges</div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            {BADGES.map((badge) => (
+            {gamification.badges.map((badge: any) => (
               <div
-                key={badge.id}
+                key={badge.badge_id}
                 className={`rounded-lg border p-3 transition-all ${
                   badge.earned
-                    ? "border-warning/30 bg-warning/5"
+                    ? "border-warning/30 bg-warning/5 animate-pulse"
                     : "border-border bg-[#0e1a30] opacity-70"
                 }`}
               >
                 <div className="flex items-start gap-2">
                   <div className="w-9 h-9 rounded-full bg-[#162035] flex items-center justify-center text-base flex-shrink-0">
-                    {badge.em}
                   </div>
                   <div className="min-w-0">
                     <div className="text-sm font-semibold text-foreground flex items-center gap-1">
-                      {badge.label}
+                      {badge.name}
                       {!badge.earned && <Lock size={12} className="text-muted-foreground" />}
                     </div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">{badge.desc}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{badge.description}</div>
                   </div>
                 </div>
               </div>
             ))}
           </div>
+        </>
+        )}
         </div>
 
         <div className="bg-card border border-border rounded-xl p-5">

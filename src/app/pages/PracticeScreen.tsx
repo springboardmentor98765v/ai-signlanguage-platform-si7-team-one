@@ -11,14 +11,19 @@ import type { Screen } from "../lib/types";
 import { HandOverlay } from "../components/shared/HandOverlay";
 import { FlowStepper } from "../components/shared/FlowStepper";
 import { useAuth } from "../context/AuthContext";
-import { startPracticeSession, submitPracticeAttempt } from "../services/businessApi";
-
+import { startPracticeSession, submitPracticeAttempt, endPracticeSession } from "../services/businessApi";
 type AttemptResult = {
   success: boolean;
   predicted_sign?: string;
   confidence?: number;
   hold_seconds?: number;
   message?: string;
+  // AI guidance fields from Intern 3's updated /predict response
+  suggestion?: string;        // e.g. "Move hand closer to camera"
+  hand_position?: string;     // "Left" | "Center" | "Right"
+  hand_distance?: string;     // "Too Far" | "Good Distance" | "Too Close"
+  gesture_quality?: string;   // "Good" | "Poor" etc.
+  processing_time_ms?: number;
   assessment?: {
     correct_predictions: number;
     total_predictions: number;
@@ -79,22 +84,42 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const holdStartedAt = useRef<string | null>(null);
+  const sessionEndedRef = useRef(false);
+  // Effect 1 — camera only, runs once
+useEffect(() => {
+  let stream: MediaStream | null = null;
+  navigator.mediaDevices
+    ?.getUserMedia({ video: { facingMode: "user" } })
+    .then(s => {
+      stream = s;
+      if (videoRef.current) {
+        videoRef.current.srcObject = s;
+        setCameraReady(true);
+        startTimer();
+      }
+    })
+    .catch(() => setCameraError("Couldn't access your camera."));
+  return () => {
+    stream?.getTracks().forEach(t => t.stop());
+    stopTimer();
+  };
+}, []);  // ← empty array, camera opens once only
 
-  useEffect(() => {
-    let stream: MediaStream | null = null;
-    navigator.mediaDevices
-      ?.getUserMedia({ video: { facingMode: "user" } })
-      .then(s => {
-        stream = s;
-        if (videoRef.current) {
-          videoRef.current.srcObject = s;
-          setCameraReady(true);
-          startTimer();
-        }
-      })
-      .catch(() => setCameraError("Couldn't access your camera. Check permissions and try again."));
-    return () => { stream?.getTracks().forEach(t => t.stop()); stopTimer(); };
-  }, []);
+// Effect 2 — abandon session on unmount, reads latest sessionId via ref
+const sessionIdRef = useRef<string | null>(null);
+useEffect(() => {
+  sessionIdRef.current = sessionId;  // keep ref in sync whenever sessionId changes
+}, [sessionId]);
+
+useEffect(() => {
+  return () => {
+    // cleanup uses ref (not closure) so it always sees the latest sessionId
+    if (sessionIdRef.current && !sessionEndedRef.current) {
+      sessionEndedRef.current = true;
+      endPracticeSession(sessionIdRef.current, "abandoned").catch(() => {});
+    }
+  };
+}, []);  // ← empty array, cleanup registered once only
 
   useEffect(() => {
     const uid = userId ?? "00000000-0000-0000-0000-000000000000";
@@ -130,7 +155,7 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
         setAttempts(a => a + 1);
         localStorage.setItem("current_expected_sign", sign);
       } catch (e) {
-        setResult({ success: false, message: "Business Logic service unavailable. Is it running on port 8002?" });
+        setResult({ success: false, message: `Request failed: ${(e as Error).message}` });
       } finally {
         setCapturing(false);
         holdStartedAt.current = new Date().toISOString();
@@ -151,7 +176,17 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
   const confCol = acc == null ? "bg-[#1a2844]" : acc >= 80 ? "bg-emerald-500" : acc >= 60 ? "bg-amber-500" : "bg-rose-500";
   const confTxt = acc == null ? "text-muted-foreground" : acc >= 80 ? "text-emerald-400" : acc >= 60 ? "text-amber-400" : "text-rose-400";
   const currentSigns = category === "alphabet" ? ALPHABET : WORDS;
-
+  const handleFinish = async () => {
+    if (sessionId && !sessionEndedRef.current) {
+      sessionEndedRef.current = true;
+      try {
+        await endPracticeSession(sessionId, "completed");
+      } catch (e) {
+        // non-fatal — still let them see feedback even if the end-call fails
+      }
+    }
+    go("feedback");
+  };
   return (
     <div className="h-full bg-[#060b13] flex flex-col overflow-hidden">
       <FlowStepper active={1} />
@@ -220,6 +255,14 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
             </div>
           )}
 
+          {/* AI hand guidance toast — shown after a capture */}
+          {result?.success && result.suggestion && (
+            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-amber-950/80 border border-amber-900/50 text-amber-300 text-xs px-4 py-2 rounded-xl backdrop-blur-sm whitespace-nowrap">
+              <Info size={12} className="flex-shrink-0" />
+              {result.suggestion}
+            </div>
+          )}
+
           <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-1.5 px-2 md:gap-3 md:px-0">
             <button
               onClick={() => { setResult(null); setAttempts(0); setElapsed(0); }}
@@ -237,7 +280,7 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
               {capturing ? "Analyzing..." : attempts >= MAX_ATTEMPTS ? "Max attempts reached" : "Capture & Predict"}
             </button>
             <button
-              onClick={() => go("feedback")}
+              onClick={handleFinish}
               disabled={!sessionId}
               className="flex items-center gap-1.5 bg-[#0e1a30]/80 backdrop-blur border border-border hover:border-cyan-900/40 text-foreground px-3 py-2.5 md:px-5 rounded-xl text-xs md:text-sm font-semibold transition-all disabled:opacity-60"
             >
@@ -283,6 +326,47 @@ export default function PracticeScreen({ go }: { go: (s: Screen) => void }) {
               <div className="space-y-1.5 text-xs text-muted-foreground">
                 <div>Correct: <span className="text-foreground">{result.assessment.correct_predictions} / {result.assessment.total_predictions}</span></div>
                 <div>Hold time: <span className="text-foreground">{result.hold_seconds?.toFixed(1) ?? "—"}s</span></div>
+                {result.processing_time_ms != null && (
+                  <div>Inference: <span className="text-foreground">{result.processing_time_ms.toFixed(0)}ms</span></div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* AI hand guidance — position, distance, quality */}
+          {result?.success && (result.hand_position || result.hand_distance || result.gesture_quality) && (
+            <div>
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Hand Guidance</div>
+              <div className="space-y-1.5 text-xs">
+                {result.hand_position && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Position</span>
+                    <span className={result.hand_position === "Center" ? "text-emerald-400" : "text-amber-400"}>
+                      {result.hand_position}
+                    </span>
+                  </div>
+                )}
+                {result.hand_distance && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Distance</span>
+                    <span className={result.hand_distance === "Good Distance" ? "text-emerald-400" : "text-amber-400"}>
+                      {result.hand_distance}
+                    </span>
+                  </div>
+                )}
+                {result.gesture_quality && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Quality</span>
+                    <span className={result.gesture_quality === "Good" ? "text-emerald-400" : "text-rose-400"}>
+                      {result.gesture_quality}
+                    </span>
+                  </div>
+                )}
+                {result.suggestion && (
+                  <div className="mt-2 text-[10px] text-amber-400 bg-amber-950/30 border border-amber-900/30 rounded-lg px-2.5 py-2 leading-relaxed">
+                    💡 {result.suggestion}
+                  </div>
+                )}
               </div>
             </div>
           )}

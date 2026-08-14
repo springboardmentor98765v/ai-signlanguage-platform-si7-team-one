@@ -34,7 +34,7 @@ interface ProgressReport {
 interface WeeklyData { week_label: string; average_accuracy: number; sessions_count: number; }
 
 export default function ProgressAnalytics() {
-  const { userId } = useAuth();
+  const { userId, fullName } = useAuth();
   const [report, setReport] = useState<ProgressReport | null>(null);
   const [weeklyData, setWeeklyData] = useState<WeeklyData[]>([]);
   const [ai, setAi] = useState<any>(null);
@@ -64,7 +64,7 @@ export default function ProgressAnalytics() {
   const handleDownloadPDF = async () => {
     setPdfLoading(true);
     try {
-      const blob = await downloadProgressPDF(uid, "Maya Chen");
+      const blob = await downloadProgressPDF(uid, fullName ?? "Learner");
       if (blob) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -103,7 +103,7 @@ export default function ProgressAnalytics() {
 
   const chartData = weeklyData.map(w => ({
     date: w.week_label,
-    accuracy: Math.round(w.average_accuracy * 100),
+    accuracy: Math.round(w.average_accuracy),
   }));
 
   return (
@@ -125,10 +125,10 @@ export default function ProgressAnalytics() {
         <>
           {/* ── REAL DATA from Business Logic /progress/{user_id} ── */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <MCard icon={BookOpen}   label="Lessons Completed"   value={String(report.distinct_signs_practiced)} col="cyan" />
-            <MCard icon={Target}     label="Average Accuracy"    value={`${report.average_accuracy}%`} delta={`Grade ${report.grade}`} col="emerald" />
+            <MCard icon={BookOpen}   label="Lessons Completed"   value={String(report.completed_sessions)} col="cyan" />
+            <MCard icon={Target}     label="Average Accuracy"    value={`${Math.round(report.average_accuracy)}%`} delta={`Grade ${report.grade}`} col="emerald" />
             <MCard icon={Clock}      label="Practice Time"       value={`${practiceHours}h`} col="violet" />
-            <MCard icon={TrendingUp} label="Improvement Rate"    value={report.improvement_rate != null ? `+${Math.round(report.improvement_rate * 100)}%` : "—"} col="amber" />
+            <MCard icon={TrendingUp} label="Improvement Rate"    value={report.improvement_rate != null ? `+${Math.round(report.improvement_rate)}%` : "—"} col="amber" />
           </div>
 
           {/* Real weekly accuracy chart */}
