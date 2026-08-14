@@ -7,6 +7,7 @@ SQL_INJECTION_PATTERN = re.compile(
 )
 
 
+
 def sanitize_text_field(value: str, field_name: str = "field", max_length: int = 1000) -> str:
     """Raises ValueError if the input looks malicious or is too long."""
     if value is None:
@@ -20,5 +21,6 @@ def sanitize_text_field(value: str, field_name: str = "field", max_length: int =
 
     if SQL_INJECTION_PATTERN.search(value):
         raise ValueError(f"{field_name} contains disallowed SQL-like content")
+    
 
     return value.strip()
