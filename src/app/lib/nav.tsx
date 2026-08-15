@@ -11,7 +11,7 @@ export const NAV: Record<Role, { screen: Screen; label: string; icon: React.Elem
     { screen: "assessment",        label: "Assessments", icon: CheckSquare },
     { screen: "progress",          label: "Progress",  icon: TrendingUp },
     { screen: "certificates",      label: "Certificates", icon: Award },
-    { screen: "leaderboard",      label: "Leaderboard", icon: Trophy },
+    { screen: "leaderboard",       label: "Leaderboard", icon: Trophy },
     { screen: "certification-exam", label: "Certification", icon: Award },
   ],
   instructor: [
@@ -19,9 +19,10 @@ export const NAV: Record<Role, { screen: Screen; label: string; icon: React.Elem
     { screen: "course-management",    label: "Courses",   icon: BookOpen },
     { screen: "student-detail",       label: "Students",  icon: Users },
   ],
+  // M4 Day 4 fix: removed trainer-console (old mock page, replaced by
+  // AccessibilityTrainerDashboard). Dashboard correctly points to /trainer.
   trainer: [
     { screen: "trainer-dashboard", label: "Dashboard", icon: Home },
-    { screen: "trainer-console", label: "Console", icon: Activity },
   ],
   admin: [
     { screen: "admin-dashboard",    label: "Dashboard", icon: Home },
@@ -53,9 +54,6 @@ export const ROLE_CLS: Record<Role, string> = {
   admin:      "bg-warning/10 text-warning",
 };
 
-// Screen <-> real URL path mapping, used by the router (App.tsx) and by
-// ProtectedRoute. This is what lets every page keep using its existing
-// `go={(s: Screen) => void}` prop while actually changing the URL.
 export const SCREEN_PATH: Record<Screen, string> = {
   login: "/login", signup: "/signup", onboarding: "/onboarding",
   "learner-dashboard": "/dashboard", courses: "/courses",
@@ -64,8 +62,11 @@ export const SCREEN_PATH: Record<Screen, string> = {
   certificates: "/certificates", leaderboard: "/leaderboard",
   "instructor-dashboard": "/instructor",
   "course-management": "/instructor/courses", "student-detail": "/instructor/students",
-  "trainer-console": "/trainer", "admin-dashboard": "/admin",
-  "trainer-dashboard": "/trainer/dashboard",
+  // M4 Day 4 fix: give trainer-console a unique dead path so it doesn't
+  // collide with trainer-dashboard in the PATH_SCREEN reverse lookup.
+  "trainer-console": "/trainer-console",
+  "trainer-dashboard": "/trainer",
+  "admin-dashboard": "/admin",
   "user-management": "/admin/users", "system-monitoring": "/admin/system",
   notifications: "/notifications", settings: "/settings",
   "camera-permission": "/camera-permission",
@@ -77,4 +78,3 @@ export const SCREEN_PATH: Record<Screen, string> = {
 export const PATH_SCREEN: Record<string, Screen> = Object.fromEntries(
   Object.entries(SCREEN_PATH).map(([screen, path]) => [path, screen as Screen])
 ) as Record<string, Screen>;
-
