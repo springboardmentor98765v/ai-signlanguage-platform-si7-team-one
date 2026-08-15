@@ -12,6 +12,7 @@ export const NAV: Record<Role, { screen: Screen; label: string; icon: React.Elem
     { screen: "progress",          label: "Progress",  icon: TrendingUp },
     { screen: "certificates",      label: "Certificates", icon: Award },
     { screen: "leaderboard",      label: "Leaderboard", icon: Trophy },
+    { screen: "certification-exam", label: "Certification", icon: Award },
   ],
   instructor: [
     { screen: "instructor-dashboard", label: "Dashboard", icon: Home },
@@ -42,6 +43,7 @@ export const SCREEN_LABELS: Record<Screen, string> = {
   "user-management": "User Management", "system-monitoring": "System Monitoring",
   notifications: "Notifications", settings: "Settings",
   "camera-permission": "Camera Permission",
+  "certification-exam": "Certification Exam",
 };
 
 export const ROLE_CLS: Record<Role, string> = {
@@ -67,6 +69,7 @@ export const SCREEN_PATH: Record<Screen, string> = {
   "user-management": "/admin/users", "system-monitoring": "/admin/system",
   notifications: "/notifications", settings: "/settings",
   "camera-permission": "/camera-permission",
+  "certification-exam": "/certification-exam",
 };
 
 // Reverse lookup: URL path -> Screen, used by AppShell to know which nav

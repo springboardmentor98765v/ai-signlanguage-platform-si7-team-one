@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useOutletContext, useNavigate }
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ThemeProvider } from "./ThemeProvider";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
+import { RoleRoute } from "./routes/RoleRoute";
 import { AppShell } from "./components/layout/AppShell";
 import type { Screen, Role } from "./lib/types";
 import Leaderboard from "./pages/Leaderboard";
@@ -19,7 +20,6 @@ import Certificates from "./pages/Certificates";
 import InstructorDashboard from "./pages/InstructorDashboard";
 import CourseManagement from "./pages/CourseManagement";
 import StudentDetail from "./pages/StudentDetail";
-import TrainerConsole from "./pages/TrainerConsole";
 import AdminDashboard from "./pages/AdminDashboard";
 import UserManagement from "./pages/UserManagement";
 import SystemMonitoring from "./pages/SystemMonitoring";
@@ -28,6 +28,7 @@ import SettingsScreen from "./pages/SettingsScreen";
 import CameraPermissionScreen from "./pages/CameraPermissionScreen";
 import { SCREEN_PATH } from "./lib/nav";
 import AccessibilityTrainerDashboard from "./pages/AccessibilityTrainerDashboard";
+import CertificationExam from "./pages/CertificationExam";
 // Small bridge: AppShell passes `go` down via Outlet context; pages that
 // were written to take a `go` prop directly (unchanged from the original
 // prototype) read it off that context here instead of needing edits.
@@ -110,21 +111,34 @@ export default function App() {
                 <Route path="/progress" element={<ProgressAnalytics />} />
                 <Route path="/certificates" element={<Certificates />} />
 
-                <Route path="/instructor" element={<GoPage Component={InstructorDashboard} />} />
-                <Route path="/instructor/courses" element={<CourseManagement />} />
-                <Route path="/instructor/students" element={<StudentDetail />} />
+                {/* Instructor-only */}
+                <Route element={<RoleRoute allow={["instructor"]} />}>
+                  <Route path="/instructor" element={<GoPage Component={InstructorDashboard} />} />
+                  <Route path="/instructor/courses" element={<CourseManagement />} />
+                  <Route path="/instructor/students" element={<StudentDetail />} />
+                </Route>
 
-                <Route path="/trainer" element={<TrainerConsole />} />
-                <Route path="/trainer/dashboard" element={<AccessibilityTrainerDashboard />} />
-                <Route path="/admin" element={<AdminDashboard />} />
-                <Route path="/admin/users" element={<UserManagement />} />
-                <Route path="/admin/system" element={<SystemMonitoring />} />
+                {/* Accessibility Trainer-only — M4 Day 1 fix: /trainer now points
+                    at the real dashboard (learner engagement, skill development,
+                    assessment analytics, certification monitoring) instead of the
+                    old mock gesture-review console. */}
+                <Route element={<RoleRoute allow={["trainer"]} />}>
+                  <Route path="/trainer" element={<GoPage Component={AccessibilityTrainerDashboard} />} />
+                </Route>
+
+                {/* Admin-only */}
+                <Route element={<RoleRoute allow={["admin"]} />}>
+                  <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/admin/users" element={<UserManagement />} />
+                  <Route path="/admin/system" element={<SystemMonitoring />} />
+                </Route>
 
                 <Route path="/notifications" element={<NotificationsPanel />} />
                 <Route path="/settings" element={<SettingsScreen />} />
                 <Route path="/camera-permission" element={<GoPage Component={CameraPermissionScreen} />} />
 
                 <Route path="/leaderboard" element={<GoPage Component={Leaderboard} />} />
+                <Route path="/certification-exam" element={<GoPage Component={CertificationExam} />} />
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
               </Route>
             </Route>

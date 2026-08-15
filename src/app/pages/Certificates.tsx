@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Award, Download, Share2, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Award, Download, Share2, CheckCircle, XCircle, Loader2, ChevronRight } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import {
   getCertificateEligibility,
@@ -8,6 +8,7 @@ import {
   getFeedback,
 } from "../services/businessApi";
 import { getProfile } from "../services/api";
+import type { Screen } from "../lib/types";
 
 type EligibilityData = {
   eligible: boolean;
@@ -27,7 +28,7 @@ type FeedbackItem = {
   severity: string;
 };
 
-export default function Certificates() {
+export default function Certificates({ go }: { go: (s: Screen) => void }) {
   const { userId, role } = useAuth();
   const [eligibility, setEligibility] = useState<EligibilityData | null>(null);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
@@ -224,6 +225,22 @@ export default function Certificates() {
         </div>
       )}
 
+      {/* ── M4 Day 3: Certification Exam entry point ── */}
+      <div className="bg-card border border-border rounded-xl p-5 text-center space-y-3">
+        <Award size={24} className="mx-auto text-primary" />
+        <div>
+          <h3 className="font-semibold text-sm text-foreground">Certification Exam</h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            Prove your proficiency at Beginner, Intermediate, Advanced, or Professional level.
+          </p>
+        </div>
+        <button
+          onClick={() => go("certification-exam")}
+          className="w-full py-2.5 rounded-xl bg-primary/10 text-primary font-semibold text-sm hover:bg-primary/20 transition-colors flex items-center justify-center gap-2"
+        >
+          <ChevronRight size={14} /> Take Certification Exam
+        </button>
+      </div>
     </div>
   );
 }

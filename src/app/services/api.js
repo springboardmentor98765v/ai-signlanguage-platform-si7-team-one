@@ -7,7 +7,7 @@
 // USE_MOCKS.
 
 const BASE_URL = "http://localhost:8000";
-export const USE_MOCKS = false; // flip to false once backend is reachable
+export const USE_MOCKS = true; // flip to false once backend is reachable
 
 function getToken() {
   return localStorage.getItem("token");

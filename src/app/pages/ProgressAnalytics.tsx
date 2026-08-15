@@ -6,6 +6,7 @@ import {
   Shield, Server, UserCheck, LogOut, Plus, Search, Filter,
   Download, Share2, AlertTriangle, CheckCircle, XCircle, Info,
   SkipForward, Calendar, Lock, Mail, Check, ChevronLeft, RefreshCw,
+  Loader2,
 } from "lucide-react";
 import {
   BarChart, Bar, ResponsiveContainer, XAxis, YAxis,
@@ -18,6 +19,10 @@ import { useAuth } from "../context/AuthContext";
 import {
   getProgressReport, getWeeklyAnalytics, getUserAnalytics, downloadProgressPDF,
   downloadLearnerProgressExport,
+  downloadLearningReport,
+  downloadAssessmentReport,
+  downloadAccuracyReport,
+  downloadCertificationReport,
 } from "../services/businessApi";
 import { getAnalytics } from "../services/aiApi";
 
@@ -42,6 +47,8 @@ export default function ProgressAnalytics() {
   const [error, setError] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [csvLoading, setCsvLoading] = useState(false);
+  // M4 Day 3 — tracks which report type+format is currently downloading
+  const [reportLoading, setReportLoading] = useState<string | null>(null);
 
   const uid = userId ?? "00000000-0000-0000-0000-000000000001";
 
@@ -83,7 +90,6 @@ export default function ProgressAnalytics() {
     try {
       const blob = await downloadLearnerProgressExport(uid, "csv");
       if (!blob) return;
-
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -94,6 +100,38 @@ export default function ProgressAnalytics() {
       alert("Couldn't export CSV right now.");
     } finally {
       setCsvLoading(false);
+    }
+  };
+
+  // M4 Day 3 — download any of the 5 report types as PDF or Excel
+  // Confirmed against real export router (export.py):
+  //   GET /export/{user_id}/learning?format=pdf|excel
+  //   GET /export/{user_id}/assessment?format=pdf|excel
+  //   GET /export/{user_id}/accuracy?format=pdf|excel
+  //   GET /export/{user_id}/certification-report?format=pdf|excel
+  const handleDownloadReport = async (
+    type: "learning" | "assessment" | "accuracy" | "certification",
+    format: "pdf" | "excel"
+  ) => {
+    const key = `${type}-${format}`;
+    setReportLoading(key);
+    try {
+      const name = fullName ?? "Learner";
+      let blob: Blob;
+      if (type === "learning")       blob = await downloadLearningReport(uid, name, format);
+      else if (type === "assessment") blob = await downloadAssessmentReport(uid, name, format);
+      else if (type === "accuracy")  blob = await downloadAccuracyReport(uid, name, format);
+      else                           blob = await downloadCertificationReport(uid, name, format);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${type}_report_${uid.slice(0, 8)}.${format === "excel" ? "xlsx" : "pdf"}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert(`Couldn't download ${type} report. Is the Business Logic service running on port 8002?`);
+    } finally {
+      setReportLoading(null);
     }
   };
 
@@ -191,6 +229,7 @@ export default function ProgressAnalytics() {
             </div>
           </div>
 
+          {/* Progress report export (existing — CSV + PDF) */}
           <div className="flex flex-wrap gap-3">
             <button
               onClick={handleDownloadCSV}
@@ -208,6 +247,48 @@ export default function ProgressAnalytics() {
               <Download size={14} />
               {pdfLoading ? "Generating PDF..." : "Download Progress Report PDF"}
             </button>
+          </div>
+
+          {/* ── M4 Day 3: All 5 Report Types ────────────────────────────────────
+              Wired to real export router (export.py):
+                GET /export/{uid}/learning, /assessment, /accuracy, /certification-report
+              Each available as PDF or Excel. Progress report (above) covers the 5th type.
+          ── */}
+          <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">All Reports</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Download any of the 5 report types as PDF or Excel.
+              </p>
+            </div>
+
+            <div className="divide-y divide-border/50">
+              {(["learning", "assessment", "accuracy", "certification"] as const).map(type => (
+                <div key={type} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                  <span className="text-sm capitalize text-foreground">{type} Report</span>
+                  <div className="flex gap-2">
+                    {(["pdf", "excel"] as const).map(fmt => {
+                      const key = `${type}-${fmt}`;
+                      const busy = reportLoading === key;
+                      return (
+                        <button
+                          key={fmt}
+                          onClick={() => handleDownloadReport(type, fmt)}
+                          disabled={!!reportLoading}
+                          className="px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/50 hover:bg-muted text-foreground disabled:opacity-40 transition-colors flex items-center gap-1.5"
+                        >
+                          {busy
+                            ? <Loader2 size={10} className="animate-spin" />
+                            : <Download size={10} />
+                          }
+                          {fmt.toUpperCase()}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </>
       )}
