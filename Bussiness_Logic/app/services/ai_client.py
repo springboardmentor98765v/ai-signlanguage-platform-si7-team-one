@@ -1,10 +1,11 @@
 import httpx
 from typing import Optional
 
+from app.core.config import AI_SERVICE_URL, USE_MOCK_AI, AI_SERVICE_TIMEOUT_SECONDS
 
-USE_MOCK_AI = False
-AI_PREDICT_URL = "http://127.0.0.1:8001/predict"
-
+# Kept as module-level names for backwards compatibility with any code
+# that imports AI_PREDICT_URL / USE_MOCK_AI directly from this module.
+AI_PREDICT_URL = AI_SERVICE_URL
 
 class AIPredictionResult:
     def __init__(
@@ -74,7 +75,7 @@ def get_prediction(
     files = {"file": ("frame.jpg", image_bytes, "image/jpeg")}
 
     try:
-        response = httpx.post(AI_PREDICT_URL, files=files, timeout=10.0)
+        response = httpx.post(AI_PREDICT_URL, files=files, timeout=AI_SERVICE_TIMEOUT_SECONDS)
         response.raise_for_status()
         data = response.json()
     except httpx.TimeoutException:
