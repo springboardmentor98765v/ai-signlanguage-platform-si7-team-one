@@ -109,7 +109,7 @@ export default function App() {
                 <Route path="/assessment" element={<GoPage Component={AssessmentScreen} />} />
                 <Route path="/feedback" element={<GoPage Component={FeedbackScreen} />} />
                 <Route path="/progress" element={<ProgressAnalytics />} />
-                <Route path="/certificates" element={<Certificates />} />
+                <Route path="/certificates" element={<GoPage Component={Certificates} />} />
 
                 {/* Instructor-only */}
                 <Route element={<RoleRoute allow={["instructor"]} />}>
