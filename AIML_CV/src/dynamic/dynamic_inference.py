@@ -1,8 +1,9 @@
 import os
 import cv2
 import numpy as np
-import tensorflow as tf
 import mediapipe as mp
+
+from tensorflow.keras.models import load_model
 
 
 # ============================================================
@@ -10,28 +11,29 @@ import mediapipe as mp
 # ============================================================
 
 BASE_DIR = os.path.dirname(
-    os.path.dirname(
-        os.path.dirname(
-            os.path.abspath(__file__)
-        )
-    )
+    os.path.abspath(__file__)
+)
+
+MODELS_DIR = os.path.join(
+    BASE_DIR,
+    "..",
+    "..",
+    "models"
 )
 
 MODEL_PATH = os.path.join(
-    BASE_DIR,
-    "models",
+    MODELS_DIR,
     "dynamic_word_model.keras"
 )
 
 LABEL_PATH = os.path.join(
-    BASE_DIR,
-    "models",
+    MODELS_DIR,
     "dynamic_label_encoder.npy"
 )
 
 
 # ============================================================
-# CONFIGURATION
+# SETTINGS
 # ============================================================
 
 MAX_FRAMES = 30
@@ -44,11 +46,11 @@ FEATURES_PER_FRAME = 63
 
 print("Loading dynamic model...")
 
-model = tf.keras.models.load_model(
+dynamic_model = load_model(
     MODEL_PATH
 )
 
-labels = np.load(
+dynamic_classes = np.load(
     LABEL_PATH,
     allow_pickle=True
 )
@@ -57,8 +59,8 @@ print("Dynamic model loaded successfully.")
 
 print("Classes:")
 
-for i, label in enumerate(labels):
-    print(f"{i} -> {label}")
+for index, label in enumerate(dynamic_classes):
+    print(f"{index} -> {label}")
 
 
 # ============================================================
@@ -67,34 +69,16 @@ for i, label in enumerate(labels):
 
 mp_hands = mp.solutions.hands
 
-hands = mp_hands.Hands(
-    static_image_mode=True,
-    max_num_hands=1,
-    min_detection_confidence=0.5
-)
-
 
 # ============================================================
-# EXTRACT LANDMARKS
+# EXTRACT LANDMARK FEATURES FROM ONE FRAME
 # ============================================================
 
-def extract_landmarks(frame):
-
-    rgb = cv2.cvtColor(
-        frame,
-        cv2.COLOR_BGR2RGB
-    )
-
-    results = hands.process(rgb)
-
-    if not results.multi_hand_landmarks:
-        return None
-
-    hand = results.multi_hand_landmarks[0]
+def extract_frame_features(hand_landmarks):
 
     features = []
 
-    for landmark in hand.landmark:
+    for landmark in hand_landmarks.landmark:
 
         features.extend([
             landmark.x,
@@ -102,150 +86,43 @@ def extract_landmarks(frame):
             landmark.z
         ])
 
-    return features
-
-
-# ============================================================
-# VIDEO → 30 × 63
-# ============================================================
-
-def extract_video_sequence(video_path):
-
-    cap = cv2.VideoCapture(video_path)
-
-    if not cap.isOpened():
-
-        raise ValueError(
-            "Could not open video."
-        )
-
-    total_frames = int(
-        cap.get(cv2.CAP_PROP_FRAME_COUNT)
+    return np.asarray(
+        features,
+        dtype=np.float32
     )
 
-    if total_frames <= 0:
 
-        cap.release()
+# ============================================================
+# PREDICT FROM SEQUENCE
+# ============================================================
 
-        raise ValueError(
-            "Video contains no frames."
-        )
+def predict_sequence(sequence):
 
-    # Select exactly 30 frames
-    frame_indices = np.linspace(
-        0,
-        total_frames - 1,
-        MAX_FRAMES
-    ).astype(int)
-
-    sequence = []
-
-    for frame_index in frame_indices:
-
-        cap.set(
-            cv2.CAP_PROP_POS_FRAMES,
-            int(frame_index)
-        )
-
-        success, frame = cap.read()
-
-        if not success:
-            continue
-
-        features = extract_landmarks(
-            frame
-        )
-
-        if features is not None:
-
-            sequence.append(
-                features
-            )
-
-    cap.release()
-
-    if len(sequence) == 0:
-
-        raise ValueError(
-            "No hand detected in the video."
-        )
-
-    sequence = np.array(
+    sequence = np.asarray(
         sequence,
         dtype=np.float32
     )
 
-    # --------------------------------------------------------
-    # Padding
-    # --------------------------------------------------------
-
-    if len(sequence) < MAX_FRAMES:
-
-        last_frame = sequence[-1]
-
-        padding_count = (
-            MAX_FRAMES - len(sequence)
-        )
-
-        padding = np.repeat(
-            last_frame[np.newaxis, :],
-            padding_count,
-            axis=0
-        )
-
-        sequence = np.vstack([
-            sequence,
-            padding
-        ])
-
-    # --------------------------------------------------------
-    # Truncation
-    # --------------------------------------------------------
-
-    elif len(sequence) > MAX_FRAMES:
-
-        sequence = sequence[
-            :MAX_FRAMES
-        ]
-
-    # --------------------------------------------------------
-    # Safety check
-    # --------------------------------------------------------
-
-    if sequence.shape != (
+    expected_shape = (
         MAX_FRAMES,
         FEATURES_PER_FRAME
-    ):
+    )
+
+    if sequence.shape != expected_shape:
 
         raise ValueError(
             f"Invalid sequence shape: "
-            f"{sequence.shape}"
+            f"{sequence.shape}. "
+            f"Expected {expected_shape}."
         )
 
-    return sequence
-
-
-# ============================================================
-# PREDICTION
-# ============================================================
-
-def predict_video(video_path):
-
-    sequence = extract_video_sequence(
-        video_path
-    )
-
-    # Add batch dimension
-    input_data = np.expand_dims(
+    model_input = np.expand_dims(
         sequence,
         axis=0
     )
 
-    # Shape:
-    # (1, 30, 63)
-
-    probabilities = model.predict(
-        input_data,
+    probabilities = dynamic_model.predict(
+        model_input,
         verbose=0
     )[0]
 
@@ -254,20 +131,141 @@ def predict_video(video_path):
     )
 
     prediction = str(
-        labels[predicted_index]
+        dynamic_classes[predicted_index]
     )
 
     confidence = float(
-        probabilities[predicted_index]
+        probabilities[predicted_index] * 100
     )
 
     return {
         "prediction": prediction,
-        "confidence": round(
-            confidence * 100,
-            2
-        ),
-        "sequence_shape": list(
-            sequence.shape
-        )
+        "confidence": round(confidence, 2),
+        "sequence_shape": list(sequence.shape)
     }
+
+
+# ============================================================
+# PREDICT FROM VIDEO
+# ============================================================
+
+def predict_video(video_path):
+
+    if not os.path.exists(video_path):
+
+        raise FileNotFoundError(
+            f"Video not found: {video_path}"
+        )
+
+    cap = cv2.VideoCapture(
+        video_path
+    )
+
+    if not cap.isOpened():
+
+        raise ValueError(
+            f"Unable to open video: {video_path}"
+        )
+
+    sequence = []
+
+    with mp_hands.Hands(
+        static_image_mode=False,
+        max_num_hands=1,
+        min_detection_confidence=0.7,
+        min_tracking_confidence=0.7
+    ) as hands:
+
+        while True:
+
+            success, frame = cap.read()
+
+            if not success:
+                break
+
+            rgb = cv2.cvtColor(
+                frame,
+                cv2.COLOR_BGR2RGB
+            )
+
+            results = hands.process(
+                rgb
+            )
+
+            if results.multi_hand_landmarks:
+
+                hand = (
+                    results.multi_hand_landmarks[0]
+                )
+
+                features = extract_frame_features(
+                    hand
+                )
+
+                if len(features) == FEATURES_PER_FRAME:
+
+                    sequence.append(
+                        features
+                    )
+
+    cap.release()
+
+
+    # --------------------------------------------------------
+    # Validate extracted frames
+    # --------------------------------------------------------
+
+    if len(sequence) == 0:
+
+        raise ValueError(
+            "No hand landmarks detected in video."
+        )
+
+
+    # --------------------------------------------------------
+    # Convert to numpy
+    # --------------------------------------------------------
+
+    sequence = np.asarray(
+        sequence,
+        dtype=np.float32
+    )
+
+
+    # --------------------------------------------------------
+    # Resize sequence to 30 frames
+    # --------------------------------------------------------
+
+    if len(sequence) >= MAX_FRAMES:
+
+        indices = np.linspace(
+            0,
+            len(sequence) - 1,
+            MAX_FRAMES
+        ).astype(int)
+
+        sequence = sequence[
+            indices
+        ]
+
+    else:
+
+        padding = np.repeat(
+            sequence[-1][np.newaxis, :],
+            MAX_FRAMES - len(sequence),
+            axis=0
+        )
+
+        sequence = np.vstack([
+            sequence,
+            padding
+        ])
+
+
+    # --------------------------------------------------------
+    # Prediction
+    # --------------------------------------------------------
+
+    return predict_sequence(
+        sequence
+    )
