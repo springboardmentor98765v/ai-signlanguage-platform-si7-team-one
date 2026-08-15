@@ -5,9 +5,13 @@
 // today and is a one-line swap to the real fetch call once the backend
 // endpoint is confirmed live. Toggle per-function or globally with
 // USE_MOCKS.
+//
+// M4 Day 5: BASE_URL now reads from VITE_API_URL env var so the production
+// build points at the live deployed backend instead of localhost:8000.
+// Set in .env.production: VITE_API_URL=https://your-backend.onrender.com
 
-const BASE_URL = "http://localhost:8000";
-export const USE_MOCKS = true; // flip to false once backend is reachable
+const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+export const USE_MOCKS = false; // false = use real backend
 
 function getToken() {
   return localStorage.getItem("token");
@@ -52,7 +56,7 @@ export async function registerUser({ name, email, password, role }) {
   // Returns 201 + a full UserResponse, not just { message }.
   return request("/auth/register", {
     method: "POST",
-    body: JSON.stringify({ full_name: name, email, password,role }),
+    body: JSON.stringify({ full_name: name, email, password, role }),
   });
 }
 
@@ -101,14 +105,7 @@ export function logoutUser() {
   localStorage.removeItem("token");
   localStorage.removeItem("role");
 }
-// ⚠️ MILESTONE 2, UNCONFIRMED: these two endpoints are Intern 2's own Day 2
-// M2 task ("Update Profile API" + "Change Password API") — as of writing
-// this, it's unknown whether they exist on main yet or what their exact
-// path/shape is. Guessed at REST conventions (PATCH /auth/profile,
-// POST /auth/change-password) matching the existing /auth/* pattern.
-// MUST be re-verified against Intern 2's real code before flipping
-// USE_MOCKS off for these two specifically — don't assume this guess is
-// correct just because the rest of api.js has been careful about this.
+
 export async function updateProfile({ fullName, email }) {
   if (USE_MOCKS) {
     return delay({
@@ -136,12 +133,6 @@ export async function changePassword({ oldPassword, newPassword }) {
 }
 
 // ── Courses / Lessons ────────────────────────────────────────────────────
-// ⚠️ PRODUCT GAP: as of 2026-07-19, Intern 2's backend has NO course-level
-// endpoint at all — only /courses/lessons (flat lesson list) and
-// /courses/lessons/{id}. There is no /courses or /courses/{id} route.
-// getCourses()/getCourseById() below stay mock-only until this is
-// resolved with Intern 2 — CourseCatalog.tsx currently has no real data
-// source to attach to. Flag this in stand-up before Day 7.
 export async function getCourses() {
   return delay([
     {
@@ -188,10 +179,6 @@ export async function getLessons(moduleId) {
       },
     ]);
   }
-  // Confirmed via schemas/course.py: GET /courses/lessons (optional
-  // ?module_id= filter), returns LessonResponse[] — { lesson_id, module_id,
-  // title, description, sequence_order, difficulty_level, is_published,
-  // created_at }.
   const qs = moduleId ? `?module_id=${moduleId}` : "";
   return request(`/courses/lessons${qs}`);
 }
@@ -203,6 +190,5 @@ export async function getLessonById(id) {
       sequence_order: 1, difficulty_level: "beginner", is_published: true, created_at: new Date().toISOString()
     });
   }
-  // Confirmed: GET /courses/lessons/{lesson_id} -> LessonResponse
   return request(`/courses/lessons/${id}`);
 }

@@ -7,8 +7,10 @@
 //   export.py, recommendation.py + matching schemas.
 // No auth on this service currently — same caveat as the AI service.
 
-const BUSINESS_BASE_URL = "http://127.0.0.1:8002";
-export const BUSINESS_USE_MOCKS = true; // flip to false once running locally
+// M4 Day 5: reads from VITE_BUSINESS_API_URL env var for production deployment.
+// Set in .env.production: VITE_BUSINESS_API_URL=https://your-business-logic.onrender.com
+const BUSINESS_BASE_URL = import.meta.env.VITE_BUSINESS_API_URL ?? "http://127.0.0.1:8002";
+export const BUSINESS_USE_MOCKS = false; // false = use real business logic service
 
 const delay = (v) => new Promise((r) => setTimeout(() => r(v), 300));
 
