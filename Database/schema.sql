@@ -2646,3 +2646,64 @@ CREATE TABLE IF NOT EXISTS accessibility_trainer_learner (
     CONSTRAINT chk_atl_different_users
         CHECK (trainer_id <> learner_id)
 );
+
+
+-- ============================================================
+-- MILESTONE 4
+-- Certification Exam Results
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS certification_exam_results (
+    exam_result_id SERIAL PRIMARY KEY,
+    user_id UUID NOT NULL,
+    level VARCHAR(20) NOT NULL,
+    score NUMERIC(5,2) NOT NULL,
+    passed BOOLEAN NOT NULL,
+    total_questions INTEGER NOT NULL,
+    correct_answers INTEGER NOT NULL,
+    exam_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT fk_certification_exam_results_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(user_id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT chk_certification_exam_results_score
+        CHECK (score >= 0 AND score <= 100),
+
+    CONSTRAINT chk_certification_exam_results_questions
+        CHECK (total_questions > 0),
+
+    CONSTRAINT chk_certification_exam_results_correct_answers
+        CHECK (correct_answers >= 0
+               AND correct_answers <= total_questions)
+);
+
+
+-- ============================================================
+-- MILESTONE 4
+-- Accessibility Trainer - Learner Assignment
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS accessibility_trainer_learner (
+    trainer_learner_id SERIAL PRIMARY KEY,
+    trainer_id UUID NOT NULL,
+    learner_id UUID NOT NULL,
+    assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT fk_accessibility_trainer
+        FOREIGN KEY (trainer_id)
+        REFERENCES users(user_id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_accessibility_learner
+        FOREIGN KEY (learner_id)
+        REFERENCES users(user_id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT uq_accessibility_trainer_learner
+        UNIQUE (trainer_id, learner_id),
+
+    CONSTRAINT chk_trainer_not_learner
+        CHECK (trainer_id <> learner_id)
+);

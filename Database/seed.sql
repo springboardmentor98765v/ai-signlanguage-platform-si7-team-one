@@ -7,3 +7,19 @@
 -- independently of schema changes without touching schema.sql again.
 -- Add additional alphabet-lesson seed INSERTs here as Intern 2/3 need them
 -- (e.g. Letters A-Z per Intern 2's Day 5 task).
+
+
+-- ============================================================
+-- Milestone 4 seed data
+-- Accessibility Trainer role
+-- ============================================================
+
+INSERT INTO roles (role_name, description)
+SELECT
+    'accessibility_trainer',
+    'Trainer who supports learners with accessibility needs'
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM roles
+    WHERE role_name = 'accessibility_trainer'
+);
