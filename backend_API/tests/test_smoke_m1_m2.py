@@ -40,14 +40,32 @@ async def test_user_register_login_flow():
 @pytest.mark.asyncio
 async def test_refresh_token_rotation():
     async with AsyncClient(transport=transport, base_url=BASE_URL) as ac:
-        login_resp = await ac.post("/auth/login", json={
-            "email": "smoketest@example.com",
-            "password": "TestPass123!"
+        email = "smoketest_refresh@example.com"
+        password = "TestPass123!"
+
+        register_resp = await ac.post("/auth/register", json={
+            "email": email,
+            "password": password,
+            "full_name": "Smoke Test Refresh"
         })
+
+        assert register_resp.status_code in (200, 201, 400, 409)
+
+        login_resp = await ac.post("/auth/login", json={
+            "email": email,
+            "password": password
+        })
+
+        assert login_resp.status_code == 200
+
         refresh_token = login_resp.json().get("refresh_token")
         assert refresh_token is not None
 
-        refresh_resp = await ac.post("/auth/refresh", json={"refresh_token": refresh_token})
+        refresh_resp = await ac.post(
+            "/auth/refresh",
+            json={"refresh_token": refresh_token}
+        )
+
         assert refresh_resp.status_code == 200
         assert "access_token" in refresh_resp.json()
 
