@@ -1,57 +1,75 @@
 from uuid import UUID
+from datetime import datetime, timezone, timedelta
 from typing import List, Dict
 
 from app.schemas.recommendation import RecommendationItem, RecommendationOut
 from app.services.practice_service import practice_store
 from app.services.assessment_service import assessment_store
+from app.schemas.practice import SessionStatus
 
-# Rule thresholds — per SRS Day 4:
-# "below 70% in the last 3 attempts = recommend extra practice"
+# Rule thresholds
 ACCURACY_THRESHOLD = 70.0
-MIN_ATTEMPTS = 3
+MIN_WEIGHTED_ATTEMPTS = 2.0     # minimum weighted attempts before flagging
+
+# Recency weights
+WEIGHT_LAST_7_DAYS = 1.0
+WEIGHT_8_TO_30_DAYS = 0.5
+WEIGHT_OLDER = 0.25
+
+
+def _get_recency_weight(session_date: datetime) -> float:
+    now = datetime.now(timezone.utc)
+    # Make session_date timezone-aware if it isn't
+    if session_date.tzinfo is None:
+        session_date = session_date.replace(tzinfo=timezone.utc)
+    days_ago = (now - session_date).days
+    if days_ago <= 7:
+        return WEIGHT_LAST_7_DAYS
+    if days_ago <= 30:
+        return WEIGHT_8_TO_30_DAYS
+    return WEIGHT_OLDER
 
 
 def get_recommendations(user_id: UUID) -> RecommendationOut:
     """
-    Looks across all of a user's sessions, aggregates per-sign
-    correct/total counts, and flags any sign where recent accuracy
-    is below the threshold AND the sign has been attempted enough
-    times to be statistically meaningful.
+    Recency-weighted recommendation engine (M3 upgrade from M2).
+    Recent attempts count more than old ones — a sign improved recently
+    won't keep getting flagged just because of old bad attempts.
     """
     sessions = practice_store.get_sessions_by_user(user_id)
 
-    # Aggregate per-sign stats across all sessions for this user
-    # sign -> {"correct": int, "total": int}
-    combined: Dict[str, Dict[str, int]] = {}
+    # Per-sign weighted stats: sign -> {"weighted_correct": float, "weighted_total": float}
+    weighted_stats: Dict[str, Dict[str, float]] = {}
 
     for session in sessions:
         assessment = assessment_store.get(session.session_id)
         if assessment is None:
             continue
+
+        weight = _get_recency_weight(session.started_at)
+
         for sign, stats in assessment.sign_stats.items():
-            entry = combined.setdefault(sign, {"correct": 0, "total": 0})
-            entry["correct"] += stats["correct"]
-            entry["total"] += stats["total"]
+            entry = weighted_stats.setdefault(sign, {"weighted_correct": 0.0, "weighted_total": 0.0})
+            entry["weighted_correct"] += stats["correct"] * weight
+            entry["weighted_total"] += stats["total"] * weight
 
     recommendations: List[RecommendationItem] = []
 
-    for sign, stats in combined.items():
-        total = stats["total"]
-        if total < MIN_ATTEMPTS:
-            # Not enough attempts to make a reliable recommendation
+    for sign, stats in weighted_stats.items():
+        weighted_total = stats["weighted_total"]
+        if weighted_total < MIN_WEIGHTED_ATTEMPTS:
             continue
 
-        accuracy = (stats["correct"] / total) * 100
+        weighted_accuracy = (stats["weighted_correct"] / weighted_total) * 100
 
-        if accuracy < ACCURACY_THRESHOLD:
+        if weighted_accuracy < ACCURACY_THRESHOLD:
             recommendations.append(RecommendationItem(
                 sign=sign,
-                reason=f"You've attempted sign '{sign}' {total} times with only {round(accuracy, 1)}% accuracy — some extra practice would help.",
-                recent_accuracy=round(accuracy, 2),
-                attempts_checked=total,
+                reason=f"Your recent practice shows {round(weighted_accuracy, 1)}% accuracy on sign '{sign}' — some extra practice would help.",
+                recent_accuracy=round(weighted_accuracy, 2),
+                attempts_checked=round(weighted_total, 1),
             ))
 
-    # Sort by worst accuracy first so the most urgent signs appear at the top
     recommendations.sort(key=lambda r: r.recent_accuracy)
 
     return RecommendationOut(
