@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import List
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -11,10 +12,9 @@ from app.core.config import settings
 from app.database.session import get_db
 from app.models.user import User
 
-#add refresh token helpers: M2
+# add refresh token helpers: M2
 import hashlib
 import secrets
-from datetime import timedelta
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -53,8 +53,14 @@ def get_current_user(
 ) -> User:
     token = credentials.credentials
     payload = decode_token(token)
-    user_id = payload.get("sub")
-    if not user_id:
+    user_id_raw = payload.get("sub")
+    if not user_id_raw:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+
+    # M4: sub is a string in the JWT, user_id column is UUID — cast explicitly
+    try:
+        user_id = UUID(user_id_raw)
+    except (ValueError, TypeError):
         raise HTTPException(status_code=401, detail="Invalid token payload")
 
     user = db.query(User).filter(User.user_id == user_id).first()
@@ -70,7 +76,8 @@ def get_user_roles(user: User) -> List[str]:
 
 
 def require_role(*allowed_roles: str):
-    """RBAC dependency — usage: Depends(require_role('admin', 'instructor'))"""
+    """RBAC dependency — usage: Depends(require_role('admin', 'instructor'))
+    Works for a single role too: Depends(require_role('trainer'))"""
     def role_checker(current_user: User = Depends(get_current_user)) -> User:
         user_roles = get_user_roles(current_user)
         if not any(role in allowed_roles for role in user_roles):
@@ -81,7 +88,8 @@ def require_role(*allowed_roles: str):
         return current_user
     return role_checker
 
-#M2
+
+# M2
 REFRESH_TOKEN_EXPIRE_DAYS = 30
 
 
@@ -94,3 +102,28 @@ def generate_refresh_token() -> tuple[str, str]:
 
 def hash_refresh_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode()).hexdigest()
+
+
+# M4
+def verify_self_or_admin(current_user: User, target_id: UUID) -> None:
+    """Allow only if current_user IS target_id, or has admin role."""
+    role_names = get_user_roles(current_user)
+    if current_user.user_id != target_id and "admin" not in role_names:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied"
+        )
+
+
+def verify_self_or_roles(current_user: User, target_id: UUID, *allowed_roles: str) -> None:
+    """Allow if current_user IS target_id, OR has one of allowed_roles.
+    Call with no allowed_roles for strict self-only access.
+    Usage:
+      verify_self_or_roles(current_user, user_id)                    -> self only
+      verify_self_or_roles(current_user, user_id, "trainer", "admin") -> self or those roles
+    """
+    if current_user.user_id == target_id:
+        return
+    if allowed_roles and set(allowed_roles).intersection(get_user_roles(current_user)):
+        return
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
