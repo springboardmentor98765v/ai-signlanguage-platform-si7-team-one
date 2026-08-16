@@ -1,30 +1,19 @@
 """
-Accessibility Trainer Analytics Service (Milestone 4, Day 3)
+Accessibility Trainer Analytics Service (updated post Day 3)
 
-Computes the 4 analytics groups called out by the original project
-document (Section 11) and the M4 SRS gap list: learner engagement,
-skill development, assessment analytics, and certification status —
-scoped to the learners assigned to a given Accessibility Trainer.
-
-Nothing here invents new metrics from scratch — every number is derived
-by reusing the existing M1-M3 services:
-  - engagement           -> practice_store (sessions in the trailing 7 days)
-  - skill development    -> analytics_service.compute_weekly_analytics() (improvement_rate)
-  - assessment analytics -> assessment_store (average weighted score across sessions)
-  - certification status -> certification_service.certification_store (Day 2)
-
-Trainer-learner assignment is a simple in-memory placeholder standing in
-for Intern 5's mapping table (not yet built as of M4 Day 3 — see SRS
-Cross-Domain Dependency Matrix, due by Day 3).
+Learner-trainer assignment is now owned entirely by Intern 2's backend
+service (the real instructor_students table). This service no longer
+maintains its own in-memory assignment store — instead it calls Aashi's
+GET /trainer/{trainer_id}/learners endpoint to fetch the list of assigned
+learners, then computes analytics on top using our existing M1-M4 stores.
 """
 
+import httpx
 from uuid import UUID
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional
 
-from app.models.trainer_assignment import TrainerAssignment
 from app.schemas.trainer_analytics import (
-    TrainerAssignmentOut,
     LearnerAnalyticsOut,
     TrainerDashboardOut,
 )
@@ -32,63 +21,33 @@ from app.services.practice_service import practice_store
 from app.services.assessment_service import assessment_store
 from app.services.analytics_service import compute_weekly_analytics
 from app.services.certification_service import certification_store
+from app.core.config import BACKEND_API_URL, AI_SERVICE_TIMEOUT_SECONDS
 
 # ── Engagement thresholds ────────────────────────────────────────────
-# Adjust these constants to tune sensitivity without touching logic.
 HIGH_ENGAGEMENT_SESSIONS_PER_WEEK = 4
-LOW_ENGAGEMENT_SESSIONS_PER_WEEK = 2   # below this => "Low"
+LOW_ENGAGEMENT_SESSIONS_PER_WEEK = 2
 
 
-class InMemoryTrainerAssignmentStore:
+# ── Learner list — fetched from Aashi's service ──────────────────────
+
+def get_learners_for_trainer(trainer_id: UUID) -> List[UUID]:
     """
-    Standing in for the real trainer-learner mapping table (Intern 5,
-    M4 Day 2). Swap for real DB calls once that table exists.
+    Calls Aashi's backend:
+      GET {BACKEND_API_URL}/trainer/{trainer_id}/learners
+    Falls back to empty list on any network/timeout error so the
+    dashboard still responds gracefully if her service is temporarily down.
     """
-
-    def __init__(self):
-        self._assignments: List[TrainerAssignment] = []
-
-    def assign(self, trainer_id: UUID, learner_id: UUID) -> TrainerAssignment:
-        existing = self.get(trainer_id, learner_id)
-        if existing is not None:
-            return existing
-        assignment = TrainerAssignment(
-            trainer_id=trainer_id,
-            learner_id=learner_id,
-            assigned_at=datetime.now(timezone.utc),
-        )
-        self._assignments.append(assignment)
-        return assignment
-
-    def unassign(self, trainer_id: UUID, learner_id: UUID) -> bool:
-        before = len(self._assignments)
-        self._assignments = [
-            a for a in self._assignments
-            if not (a.trainer_id == trainer_id and a.learner_id == learner_id)
-        ]
-        return len(self._assignments) < before
-
-    def get(self, trainer_id: UUID, learner_id: UUID) -> Optional[TrainerAssignment]:
-        for a in self._assignments:
-            if a.trainer_id == trainer_id and a.learner_id == learner_id:
-                return a
-        return None
-
-    def get_learners_for_trainer(self, trainer_id: UUID) -> List[UUID]:
-        return [a.learner_id for a in self._assignments if a.trainer_id == trainer_id]
-
-    def to_out(self, assignment: TrainerAssignment) -> TrainerAssignmentOut:
-        return TrainerAssignmentOut(
-            trainer_id=assignment.trainer_id,
-            learner_id=assignment.learner_id,
-            assigned_at=assignment.assigned_at,
-        )
+    url = f"{BACKEND_API_URL}/trainer/{trainer_id}/learners"
+    try:
+        response = httpx.get(url, timeout=AI_SERVICE_TIMEOUT_SECONDS)
+        response.raise_for_status()
+        raw = response.json()
+        return [UUID(str(item)) for item in raw]
+    except Exception:
+        return []
 
 
-trainer_assignment_store = InMemoryTrainerAssignmentStore()
-
-
-# ── Per-learner metric calculations ─────────────────────────────────
+# ── Per-learner metric calculations (unchanged from Day 3) ────────────
 
 def _sessions_this_week(user_id: UUID) -> int:
     sessions = practice_store.get_sessions_by_user(user_id)
@@ -126,8 +85,6 @@ def _certification_status(user_id: UUID) -> Dict[str, Optional[str]]:
     passed = [e for e in completed if e.passed]
 
     if passed:
-        # Highest level passed, ranked by how many signs that level covers
-        # (Professional=26 > Advanced=20 > Intermediate=14 > Beginner=8)
         highest = max(passed, key=lambda e: len(e.required_signs))
         return {"status": "Certified", "highest_certified_level": highest.level}
     if completed:
@@ -150,7 +107,7 @@ def compute_learner_analytics(learner_id: UUID) -> LearnerAnalyticsOut:
 
 
 def compute_trainer_dashboard(trainer_id: UUID) -> TrainerDashboardOut:
-    learner_ids = trainer_assignment_store.get_learners_for_trainer(trainer_id)
+    learner_ids = get_learners_for_trainer(trainer_id)
     learners = [compute_learner_analytics(lid) for lid in learner_ids]
 
     count = len(learners)
