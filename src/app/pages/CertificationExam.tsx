@@ -298,7 +298,7 @@ export default function CertificationExam({ go }: { go: (s: Screen) => void }) {
                     </div>
                     <div className="text-right text-xs ml-4 flex-shrink-0">
                       <div className="font-semibold">{lvl.num_signs} signs</div>
-                      <div className="text-muted-foreground">{Math.round(lvl.pass_threshold * 100)}% to pass</div>
+                      <div className="text-muted-foreground">{Math.round(lvl.pass_threshold)}% to pass</div>
                     </div>
                   </div>
                 </button>
@@ -327,7 +327,7 @@ export default function CertificationExam({ go }: { go: (s: Screen) => void }) {
           <h2 className="text-lg font-bold text-foreground capitalize">{selectedLevel?.level} Certification</h2>
           <p className="text-sm text-muted-foreground mt-1">
             You'll be asked to sign {selectedLevel?.num_signs} signs one at a time using your webcam.
-            Score at least {Math.round((selectedLevel?.pass_threshold ?? 0) * 100)}% to pass.
+            Score at least {Math.round(selectedLevel?.pass_threshold ?? 0)}% to pass.
           </p>
         </div>
         <ul className="text-sm text-muted-foreground space-y-1 text-left bg-muted/40 rounded-xl p-4">
