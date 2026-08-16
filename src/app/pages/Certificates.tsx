@@ -1,85 +1,246 @@
 import { useState, useEffect } from "react";
+import { Award, Download, Share2, CheckCircle, XCircle, Loader2, ChevronRight } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 import {
-  Home, BookOpen, Camera, CheckSquare, MessageCircle, TrendingUp,
-  Award, Users, Settings, Bell, ChevronRight, Play, RotateCcw,
-  ArrowRight, Eye, EyeOff, Clock, Zap, Target, Activity,
-  Shield, Server, UserCheck, LogOut, Plus, Search, Filter,
-  Download, Share2, AlertTriangle, CheckCircle, XCircle, Info,
-  SkipForward, Calendar, Lock, Mail, Check, ChevronLeft,
-} from "lucide-react";
-import { PBar } from "../components/shared/Indicators";
+  getCertificateEligibility,
+  generateCertificate,
+  getRecommendations,
+  getFeedback,
+} from "../services/businessApi";
+import { getProfile } from "../services/api";
+import type { Screen } from "../lib/types";
 
-export default function Certificates() {
-  return (
-    <div className="p-8 max-w-5xl mx-auto space-y-6">
-      <div className="grid grid-cols-3 gap-5">
-        {[
-          { title: "ASL Fundamentals",  date: "May 12, 2026", score: 94, id: "CERT-2026-ASL-001" },
-          { title: "Numbers & Math",    date: "Jun 3, 2026",  score: 88, id: "CERT-2026-NUM-042" },
-        ].map(cert => (
-          <div key={cert.id} className="bg-card border border-border rounded-[14px] overflow-hidden" style={{ boxShadow: 'var(--card-shadow)' }}>
-            <div className="bg-gradient-to-r from-primary/5 to-success/5 p-6 border-b border-border">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">SignPath AI</span>
-                <Award size={18} className="text-warning" />
-              </div>
-              <div className="text-lg font-bold text-foreground mb-1">Certificate of Completion</div>
-              <div className="text-primary font-semibold text-sm">{cert.title}</div>
-            </div>
-            <div className="p-5">
-              <div className="text-xs text-muted-foreground mb-0.5">Awarded to</div>
-              <div className="font-bold text-foreground mb-3">Maya Chen</div>
-              <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
-                <span>{cert.date}</span>
-                <span className="text-success font-semibold">{cert.score}% final score</span>
-              </div>
-              <div className="flex gap-2">
-                <button className="flex-1 flex items-center justify-center gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold py-2.5 rounded-xl transition-colors">
-                  <Download size={11} /> Download
-                </button>
-                <button className="flex items-center justify-center bg-muted border border-border hover:bg-hover text-muted-foreground hover:text-foreground text-xs py-2.5 px-3 rounded-xl transition-all">
-                  <Share2 size={11} />
-                </button>
-              </div>
-              <div className="text-[10px] text-muted-foreground mt-3 font-mono">{cert.id}</div>
-            </div>
+type EligibilityData = {
+  eligible: boolean;
+  reasons_failed: string[];
+  criteria_met: string[];
+};
+
+type Recommendation = {
+  sign: string;
+  reason: string;
+  recent_accuracy: number;
+};
+
+type FeedbackItem = {
+  feedback_type: "praise" | "improvement" | "correction";
+  message: string;
+  severity: string;
+};
+
+export default function Certificates({ go }: { go: (s: Screen) => void }) {
+  const { userId, role } = useAuth();
+  const [eligibility, setEligibility] = useState<EligibilityData | null>(null);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
+  const [learnerName, setLearnerName] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const uid = userId ?? "00000000-0000-0000-0000-000000000000";
+
+  useEffect(() => {
+    const fetchAll = async () => {
+      setLoading(true);
+      try {
+        // Get real learner name for the certificate
+        const profile = await getProfile();
+        setLearnerName(profile.full_name ?? role);
+
+        const [elig, recs] = await Promise.all([
+          getCertificateEligibility(uid),
+          getRecommendations(uid),
+        ]);
+        setEligibility(elig);
+        setRecommendations(recs.recommendations ?? []);
+
+        // Feedback for the most recent session (stored by PracticeScreen)
+        const recentSessionId = localStorage.getItem("current_session_id");
+        if (recentSessionId) {
+          try {
+            const fb = await getFeedback(recentSessionId);
+            setFeedback(fb.feedback ?? []);
+          } catch {
+            // no feedback yet for this session — that's fine
+          }
+        }
+      } catch (e) {
+        setError("Couldn't load certificate data. Is the Business Logic service running on port 8002?");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAll();
+  }, [uid]);
+
+  const handleDownload = async () => {
+    if (!eligibility?.eligible) return;
+    setDownloading(true);
+    try {
+      const blob = await generateCertificate(uid, learnerName);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `certificate_${uid.slice(0, 8)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError("Couldn't generate certificate. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const feedbackColor = (type: string) =>
+    type === "praise" ? "text-emerald-400" : type === "correction" ? "text-rose-400" : "text-amber-400";
+
+  if (loading) {
+    return (
+      <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6">
+        {/* Eligibility card skeleton */}
+        <div className="bg-card border border-border rounded-[14px] p-6 animate-pulse" style={{ boxShadow: "var(--card-shadow)" }}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="h-4 w-40 bg-muted rounded" />
+            <div className="h-6 w-20 bg-muted rounded-full" />
           </div>
-        ))}
-
-        <div className="bg-muted border border-border rounded-[14px] p-6 flex flex-col items-center justify-center text-center opacity-50">
-          <Award size={28} className="text-muted-foreground mb-3" />
-          <div className="font-semibold text-foreground text-sm mb-1">ASL Intermediate</div>
-          <div className="text-xs text-muted-foreground mb-3">Complete the course to earn</div>
-          <PBar pct={68} cls="w-full" />
-          <div className="text-xs text-muted-foreground mt-1.5">68% complete</div>
+          <div className="space-y-2 mb-5">
+            <div className="h-3 w-3/4 bg-muted rounded" />
+            <div className="h-3 w-2/3 bg-muted rounded" />
+            <div className="h-3 w-1/2 bg-muted rounded" />
+          </div>
+          <div className="h-10 w-48 bg-muted rounded-xl" />
+        </div>
+        {/* Feedback card skeleton */}
+        <div className="bg-card border border-border rounded-[14px] p-6 animate-pulse" style={{ boxShadow: "var(--card-shadow)" }}>
+          <div className="h-4 w-48 bg-muted rounded mb-4" />
+          <div className="space-y-3">
+            <div className="h-3 w-full bg-muted rounded" />
+            <div className="h-3 w-5/6 bg-muted rounded" />
+          </div>
         </div>
       </div>
+    );
+  }
 
-      <div className="bg-card border border-border rounded-[14px]  p-6 " style={{ boxShadow: 'var(--card-shadow)' }}>
-        <h3 className="font-semibold text-foreground mb-5 text-sm">Achievement Badges</h3>
-        <div className="flex flex-wrap gap-3">
-          {[
-            { lbl: "First Sign",   em: "🌟", earned: true },
-            { lbl: "Week Warrior", em: "🔥", earned: true },
-            { lbl: "Speed Signer", em: "⚡", earned: true },
-            { lbl: "Perfect Score",em: "🏆", earned: true },
-            { lbl: "100 Signs",    em: "💯", earned: true },
-            { lbl: "Month Master", em: "📅", earned: true },
-            { lbl: "Night Owl",    em: "🦉", earned: true },
-            { lbl: "Consistency",  em: "📈", earned: false },
-            { lbl: "ASL Expert",   em: "🎓", earned: false },
-          ].map(b => (
-            <div key={b.lbl} className={`flex flex-col items-center gap-1.5 p-3 rounded-[14px] border w-20 ${b.earned ? "border-warning/30 bg-warning/5" : "border-border bg-muted opacity-40"}`}>
-              <span className="text-2xl">{b.em}</span>
-              <span className="text-[10px] font-semibold text-center text-muted-foreground leading-tight">{b.lbl}</span>
+  if (error) {
+    return (
+      <div className="p-8 text-center text-rose-400 text-sm">{error}</div>
+    );
+  }
+
+  return (
+    <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6">
+
+      {/* ── Certificate Eligibility ── */}
+      <div className="bg-card border border-border rounded-[14px] p-6" style={{ boxShadow: "var(--card-shadow)" }}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-foreground text-sm">Certificate Eligibility</h3>
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${eligibility?.eligible ? "bg-emerald-500/10 text-emerald-400" : "bg-muted text-muted-foreground"}`}>
+            {eligibility?.eligible ? "Eligible ✓" : "Not Yet"}
+          </span>
+        </div>
+
+        <div className="space-y-2 mb-5">
+          {eligibility?.criteria_met.map((c, i) => (
+            <div key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
+              <CheckCircle size={13} className="text-emerald-400 flex-shrink-0 mt-0.5" />
+              {c}
+            </div>
+          ))}
+          {eligibility?.reasons_failed.map((r, i) => (
+            <div key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
+              <XCircle size={13} className="text-rose-400 flex-shrink-0 mt-0.5" />
+              {r}
             </div>
           ))}
         </div>
+
+        {eligibility?.eligible && (
+          <div className="border border-border rounded-[12px] p-4 mb-4 flex items-center gap-4 bg-emerald-500/5">
+            <Award size={36} className="text-amber-400 flex-shrink-0" />
+            <div>
+              <div className="font-bold text-foreground text-sm">Certificate of Achievement</div>
+              <div className="text-xs text-muted-foreground">AI-Powered Sign Language Platform · Awarded to {learnerName}</div>
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={handleDownload}
+          disabled={!eligibility?.eligible || downloading}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+            eligibility?.eligible && !downloading
+              ? "bg-primary hover:bg-primary/90 text-primary-foreground"
+              : "bg-muted text-muted-foreground cursor-not-allowed"
+          }`}
+        >
+          {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+          {downloading ? "Generating..." : eligibility?.eligible ? "Download Certificate" : "Complete requirements to unlock"}
+        </button>
+      </div>
+
+      {/* ── Feedback from last session ── */}
+      {feedback.length > 0 && (
+        <div className="bg-card border border-border rounded-[14px] p-6" style={{ boxShadow: "var(--card-shadow)" }}>
+          <h3 className="font-semibold text-foreground text-sm mb-4">Latest Session Feedback</h3>
+          <div className="space-y-3">
+            {feedback.map((f, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <span className={`text-xs font-semibold uppercase tracking-wide flex-shrink-0 mt-0.5 ${feedbackColor(f.feedback_type)}`}>
+                  {f.feedback_type}
+                </span>
+                <p className="text-xs text-muted-foreground">{f.message}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Recommendations ── */}
+      {recommendations.length > 0 && (
+        <div className="bg-card border border-border rounded-[14px] p-6" style={{ boxShadow: "var(--card-shadow)" }}>
+          <h3 className="font-semibold text-foreground text-sm mb-4">Practice Recommendations</h3>
+          <div className="space-y-3">
+            {recommendations.map((r, i) => (
+              <div key={i} className="flex items-start gap-3 border border-border rounded-xl p-3">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">
+                  {r.sign}
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-foreground mb-0.5">Sign "{r.sign}"</div>
+                  <div className="text-xs text-muted-foreground">{r.reason}</div>
+                  <div className="text-xs text-rose-400 mt-1">Recent accuracy: {r.recent_accuracy}%</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {recommendations.length === 0 && feedback.length === 0 && !eligibility?.eligible && (
+        <div className="bg-card border border-border rounded-[14px] p-6 text-center" style={{ boxShadow: "var(--card-shadow)" }}>
+          <Award size={32} className="text-muted-foreground mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">Complete practice sessions to unlock feedback and recommendations.</p>
+        </div>
+      )}
+
+      {/* ── M4 Day 3: Certification Exam entry point ── */}
+      <div className="bg-card border border-border rounded-xl p-5 text-center space-y-3">
+        <Award size={24} className="mx-auto text-primary" />
+        <div>
+          <h3 className="font-semibold text-sm text-foreground">Certification Exam</h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            Prove your proficiency at Beginner, Intermediate, Advanced, or Professional level.
+          </p>
+        </div>
+        <button
+          onClick={() => go("certification-exam")}
+          className="w-full py-2.5 rounded-xl bg-primary/10 text-primary font-semibold text-sm hover:bg-primary/20 transition-colors flex items-center justify-center gap-2"
+        >
+          <ChevronRight size={14} /> Take Certification Exam
+        </button>
       </div>
     </div>
   );
 }
-
-// ══════════════════════════════════════════════════════════════════════════
-// C. INSTRUCTOR SCREENS
-// ══════════════════════════════════════════════════════════════════════════

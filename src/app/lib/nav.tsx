@@ -1,5 +1,5 @@
 import {
-  Home, BookOpen, Camera, CheckSquare, TrendingUp, Award, Users, Server, Activity,
+  Home, BookOpen, Camera, CheckSquare, TrendingUp, Award, Users, Server, Activity, Trophy,
 } from "lucide-react";
 import type { Role, Screen } from "./types";
 
@@ -11,14 +11,18 @@ export const NAV: Record<Role, { screen: Screen; label: string; icon: React.Elem
     { screen: "assessment",        label: "Assessments", icon: CheckSquare },
     { screen: "progress",          label: "Progress",  icon: TrendingUp },
     { screen: "certificates",      label: "Certificates", icon: Award },
+    { screen: "leaderboard",       label: "Leaderboard", icon: Trophy },
+    { screen: "certification-exam", label: "Certification", icon: Award },
   ],
   instructor: [
     { screen: "instructor-dashboard", label: "Dashboard", icon: Home },
     { screen: "course-management",    label: "Courses",   icon: BookOpen },
     { screen: "student-detail",       label: "Students",  icon: Users },
   ],
+  // M4 Day 4 fix: removed trainer-console (old mock page, replaced by
+  // AccessibilityTrainerDashboard). Dashboard correctly points to /trainer.
   trainer: [
-    { screen: "trainer-console", label: "Console", icon: Activity },
+    { screen: "trainer-dashboard", label: "Dashboard", icon: Home },
   ],
   admin: [
     { screen: "admin-dashboard",    label: "Dashboard", icon: Home },
@@ -32,12 +36,15 @@ export const SCREEN_LABELS: Record<Screen, string> = {
   "learner-dashboard": "Dashboard", courses: "Course Catalog",
   lesson: "Lesson View", practice: "Practice", assessment: "Assessment",
   feedback: "AI Feedback", progress: "Progress & Analytics",
-  certificates: "Certificates", "instructor-dashboard": "Instructor Dashboard",
+  certificates: "Certificates", leaderboard: "Leaderboard",
+  "instructor-dashboard": "Instructor Dashboard",
   "course-management": "Course Management", "student-detail": "Student Detail",
   "trainer-console": "Trainer Console", "admin-dashboard": "Admin Dashboard",
+  "trainer-dashboard": "Accessibility Trainer Dashboard",
   "user-management": "User Management", "system-monitoring": "System Monitoring",
   notifications: "Notifications", settings: "Settings",
   "camera-permission": "Camera Permission",
+  "certification-exam": "Certification Exam",
 };
 
 export const ROLE_CLS: Record<Role, string> = {
@@ -47,20 +54,23 @@ export const ROLE_CLS: Record<Role, string> = {
   admin:      "bg-warning/10 text-warning",
 };
 
-// Screen <-> real URL path mapping, used by the router (App.tsx) and by
-// ProtectedRoute. This is what lets every page keep using its existing
-// `go={(s: Screen) => void}` prop while actually changing the URL.
 export const SCREEN_PATH: Record<Screen, string> = {
   login: "/login", signup: "/signup", onboarding: "/onboarding",
   "learner-dashboard": "/dashboard", courses: "/courses",
   lesson: "/courses/lesson", practice: "/practice", assessment: "/assessment",
   feedback: "/feedback", progress: "/progress",
-  certificates: "/certificates", "instructor-dashboard": "/instructor",
+  certificates: "/certificates", leaderboard: "/leaderboard",
+  "instructor-dashboard": "/instructor",
   "course-management": "/instructor/courses", "student-detail": "/instructor/students",
-  "trainer-console": "/trainer", "admin-dashboard": "/admin",
+  // M4 Day 4 fix: give trainer-console a unique dead path so it doesn't
+  // collide with trainer-dashboard in the PATH_SCREEN reverse lookup.
+  "trainer-console": "/trainer-console",
+  "trainer-dashboard": "/trainer",
+  "admin-dashboard": "/admin",
   "user-management": "/admin/users", "system-monitoring": "/admin/system",
   notifications: "/notifications", settings: "/settings",
   "camera-permission": "/camera-permission",
+  "certification-exam": "/certification-exam",
 };
 
 // Reverse lookup: URL path -> Screen, used by AppShell to know which nav

@@ -7,8 +7,10 @@ interface AuthState {
   role: Role;
   userId: string | null; // real UUID from backend's UserResponse — needed by
                           // Business Logic's /practice/start (user_id: UUID)
+  
+  fullName: string | null;
   loading: boolean;
-  login: (role: Role, token?: string, userId?: string) => void;
+  login: (role: Role, token?: string, userId?: string, fullName?: string) => void;
   logout: () => void;
   setRole: (r: Role) => void;
 }
@@ -19,6 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [role, setRoleState] = useState<Role>("learner");
   const [userId, setUserId] = useState<string | null>(null);
+  const [fullName, setFullName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,13 +36,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // token invalid/expired — force logout
         logoutUser();
         setIsAuthenticated(false);
+      }).then((profile) => {
+        if (profile?.full_name) setFullName(profile.full_name);
       }).finally(() => setLoading(false));
     } else {
       setLoading(false);
     }
   }, []);
 
-  const login = (r: Role, token?: string, uid?: string) => {
+  const login = (r: Role, token?: string, uid?: string, name?: string) => {
     if (token) localStorage.setItem("token", token);
     localStorage.setItem("role", r);
     setRoleState(r);
@@ -47,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem("user_id", uid);
       setUserId(uid);
     }
+    if (name) setFullName(name);
     setIsAuthenticated(true);
   };
 
@@ -63,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, role, userId, loading, login, logout, setRole }}>
+      <AuthContext.Provider value={{ isAuthenticated, role, userId, fullName, loading, login, logout, setRole }}>
       {children}
     </AuthContext.Provider>
   );

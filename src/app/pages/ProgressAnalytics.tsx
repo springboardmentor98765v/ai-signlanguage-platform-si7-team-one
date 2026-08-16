@@ -5,171 +5,309 @@ import {
   ArrowRight, Eye, EyeOff, Clock, Zap, Target, Activity,
   Shield, Server, UserCheck, LogOut, Plus, Search, Filter,
   Download, Share2, AlertTriangle, CheckCircle, XCircle, Info,
-  SkipForward, Calendar, Lock, Mail, Check, ChevronLeft,
+  SkipForward, Calendar, Lock, Mail, Check, ChevronLeft, RefreshCw,
+  Loader2,
 } from "lucide-react";
 import {
   BarChart, Bar, ResponsiveContainer, XAxis, YAxis,
-  CartesianGrid, Tooltip, Legend, AreaChart, Area,
+  CartesianGrid, Tooltip, Legend, AreaChart, Area, LineChart, Line,
 } from "recharts";
-import { accuracyData, weeklyTime, weakAreas } from "../lib/mockData";
+import { weakAreas } from "../lib/mockData";
 import { MCard } from "../components/shared/MCard";
 import { Bdg } from "../components/shared/Indicators";
+import { useAuth } from "../context/AuthContext";
+import {
+  getProgressReport, getWeeklyAnalytics, getUserAnalytics, downloadProgressPDF,
+  downloadLearnerProgressExport,
+  downloadLearningReport,
+  downloadAssessmentReport,
+  downloadAccuracyReport,
+  downloadCertificationReport,
+} from "../services/businessApi";
 import { getAnalytics } from "../services/aiApi";
 
-interface AiAnalytics {
-  total_predictions: number;
-  average_confidence: number;
-  high_confidence_predictions: number;
-  low_confidence_predictions: number;
-  most_predicted_sign: string | null;
+interface ProgressReport {
+  total_sessions: number; completed_sessions: number;
+  total_practice_time_seconds: number; average_accuracy: number;
+  grade: string; distinct_signs_practiced: number;
+  weak_signs: string[]; strong_signs: string[];
+  current_week_accuracy: number | null; improvement_rate: number | null;
+  recommended_for_practice: string[];
+  certificate_eligible: boolean; certificate_reasons_failed: string[];
 }
 
+interface WeeklyData { week_label: string; average_accuracy: number; sessions_count: number; }
+
 export default function ProgressAnalytics() {
-  const [ai, setAi] = useState<AiAnalytics | null>(null);
+  const { userId, fullName } = useAuth();
+  const [report, setReport] = useState<ProgressReport | null>(null);
+  const [weeklyData, setWeeklyData] = useState<WeeklyData[]>([]);
+  const [ai, setAi] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [csvLoading, setCsvLoading] = useState(false);
+  // M4 Day 3 — tracks which report type+format is currently downloading
+  const [reportLoading, setReportLoading] = useState<string | null>(null);
+
+  const uid = userId ?? "00000000-0000-0000-0000-000000000001";
 
   useEffect(() => {
-    getAnalytics()
-      .then(setAi)
+    setLoading(true);
+    Promise.all([
+      getProgressReport(uid),
+      getWeeklyAnalytics(uid),
+      getAnalytics().catch(() => null),
+    ])
+      .then(([rep, weekly, aiData]) => {
+        setReport(rep);
+        setWeeklyData(weekly.weeks ?? []);
+        if (aiData) setAi(aiData);
+      })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, []);
+  }, [uid]);
+
+  const handleDownloadPDF = async () => {
+    setPdfLoading(true);
+    try {
+      const blob = await downloadProgressPDF(uid, fullName ?? "Learner");
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = "progress_report.pdf"; a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (e) {
+      alert("Couldn't generate PDF. Is the Business Logic service running?");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const handleDownloadCSV = async () => {
+    setCsvLoading(true);
+    try {
+      const blob = await downloadLearnerProgressExport(uid, "csv");
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "progress_report.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert("Couldn't export CSV right now.");
+    } finally {
+      setCsvLoading(false);
+    }
+  };
+
+  // M4 Day 3 — download any of the 5 report types as PDF or Excel
+  // Confirmed against real export router (export.py):
+  //   GET /export/{user_id}/learning?format=pdf|excel
+  //   GET /export/{user_id}/assessment?format=pdf|excel
+  //   GET /export/{user_id}/accuracy?format=pdf|excel
+  //   GET /export/{user_id}/certification-report?format=pdf|excel
+  const handleDownloadReport = async (
+    type: "learning" | "assessment" | "accuracy" | "certification",
+    format: "pdf" | "excel"
+  ) => {
+    const key = `${type}-${format}`;
+    setReportLoading(key);
+    try {
+      const name = fullName ?? "Learner";
+      let blob: Blob;
+      if (type === "learning")       blob = await downloadLearningReport(uid, name, format);
+      else if (type === "assessment") blob = await downloadAssessmentReport(uid, name, format);
+      else if (type === "accuracy")  blob = await downloadAccuracyReport(uid, name, format);
+      else                           blob = await downloadCertificationReport(uid, name, format);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${type}_report_${uid.slice(0, 8)}.${format === "excel" ? "xlsx" : "pdf"}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert(`Couldn't download ${type} report. Is the Business Logic service running on port 8002?`);
+    } finally {
+      setReportLoading(null);
+    }
+  };
+
+  const practiceHours = report
+    ? Math.round(report.total_practice_time_seconds / 3600 * 10) / 10
+    : 0;
+
+  const chartData = weeklyData.map(w => ({
+    date: w.week_label,
+    accuracy: Math.round(w.average_accuracy),
+  }));
 
   return (
     <div className="p-6 space-y-5 max-w-6xl mx-auto">
-      {/* ── REAL DATA — from Intern 3's AI service /analytics endpoint. ──
-          Session-only: resets whenever the AI service restarts, since
-          history is stored in-memory, not a database. */}
-      <div className="bg-card border border-border rounded-xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-foreground text-sm">Live AI Session Stats</h3>
-          <Bdg label="Live from AI service" v="info" />
+      {loading && (
+        <div className="flex items-center justify-center py-20">
+          <RefreshCw size={20} className="animate-spin text-muted-foreground" />
         </div>
-        {loading && <div className="h-16 bg-[#0e1a30] rounded-lg animate-pulse" />}
-        {!loading && error && (
-          <p className="text-xs text-rose-400">Couldn't reach the AI service — is it running on port 8001?</p>
-        )}
-        {!loading && !error && ai && (
-          <div className="grid grid-cols-4 gap-4">
-            <div>
-              <div className="text-2xl font-bold text-foreground">{ai.total_predictions}</div>
-              <div className="text-xs text-muted-foreground">Predictions this session</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-foreground">{Math.round(ai.average_confidence * 100)}%</div>
-              <div className="text-xs text-muted-foreground">Average confidence</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-emerald-400">{ai.high_confidence_predictions}</div>
-              <div className="text-xs text-muted-foreground">High-confidence</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-foreground">{ai.most_predicted_sign ?? "—"}</div>
-              <div className="text-xs text-muted-foreground">Most practiced sign</div>
-            </div>
+      )}
+
+      {!loading && error && (
+        <div className="flex flex-col items-center gap-3 py-16 text-center">
+          <AlertTriangle size={28} className="text-rose-400" />
+          <p className="text-sm text-muted-foreground">Couldn't load your progress data. Is the Business Logic service running on port 8002?</p>
+        </div>
+      )}
+
+      {!loading && !error && report && (
+        <>
+          {/* ── REAL DATA from Business Logic /progress/{user_id} ── */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <MCard icon={BookOpen}   label="Lessons Completed"   value={String(report.completed_sessions)} col="cyan" />
+            <MCard icon={Target}     label="Average Accuracy"    value={`${Math.round(report.average_accuracy)}%`} delta={`Grade ${report.grade}`} col="emerald" />
+            <MCard icon={Clock}      label="Practice Time"       value={`${practiceHours}h`} col="violet" />
+            <MCard icon={TrendingUp} label="Improvement Rate"    value={report.improvement_rate != null ? `+${Math.round(report.improvement_rate)}%` : "—"} col="amber" />
           </div>
-        )}
-      </div>
 
-      {/* ── MOCK DATA BELOW — no backing endpoint exists yet for
-          time-series accuracy, per-category breakdown, weekly practice
-          time, or a practice calendar. Kept as illustrative mock until
-          Business Logic's Analytics service (now on main) is wired in. ── */}
-      <div className="grid grid-cols-4 gap-4">
-        <MCard icon={TrendingUp} label="Avg Accuracy (30d)" value="84%" delta="+11% vs last month" col="cyan" />
-        <MCard icon={Target}     label="Signs Mastered"      value="142" delta="of 248 learned"     col="emerald" />
-        <MCard icon={Clock}      label="Practice Time"       value="31.4h" delta="this month"       col="violet" />
-        <MCard icon={Zap}        label="Current Streak"      value="14 days" delta="Best: 21 days"  col="amber" />
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        <div className="col-span-2 bg-card border border-border rounded-xl p-5">
-          <h3 className="font-semibold text-foreground mb-4 text-sm">Accuracy Over Time</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={accuracyData}>
-              <defs>
-                <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#06b6d4" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(100,140,200,0.07)" />
-              <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#7a90b8" }} tickLine={false} axisLine={false} interval={2} />
-              <YAxis tick={{ fontSize: 10, fill: "#7a90b8" }} tickLine={false} axisLine={false} domain={[50, 100]} />
-              <Tooltip contentStyle={{ background: "#0e1a30", border: "1px solid rgba(100,140,200,0.1)", borderRadius: 8, fontSize: 11 }} />
-              <Area type="monotone" dataKey="accuracy" stroke="#06b6d4" strokeWidth={2} fill="url(#ag)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="bg-card border border-border rounded-xl p-5">
-          <h3 className="font-semibold text-foreground mb-4 text-sm">Practice Time This Week</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={weeklyTime} barSize={18}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(100,140,200,0.07)" vertical={false} />
-              <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#7a90b8" }} tickLine={false} axisLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: "#7a90b8" }} tickLine={false} axisLine={false} />
-              <Tooltip contentStyle={{ background: "#0e1a30", border: "1px solid rgba(100,140,200,0.1)", borderRadius: 8, fontSize: 11 }} />
-              <Bar dataKey="min" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="minutes" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-card border border-border rounded-xl p-5">
-          <h3 className="font-semibold text-foreground mb-4 text-sm">Accuracy by Category</h3>
-          <div className="space-y-3">
-            {[...weakAreas].sort((a, b) => a.v - b.v).map(item => (
-              <div key={item.cat} className="flex items-center gap-3">
-                <div className="text-xs text-muted-foreground w-20">{item.cat}</div>
-                <div className="flex-1 h-2 bg-[#1a2844] rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${item.v >= 80 ? "bg-emerald-500" : item.v >= 70 ? "bg-amber-500" : "bg-rose-500"}`}
-                    style={{ width: `${item.v}%` }}
-                  />
-                </div>
-                <div className="text-xs font-semibold text-foreground w-9 text-right">{item.v}%</div>
-                {item.v < 75 && <Bdg label="Focus" v="warning" />}
+          {/* Real weekly accuracy chart */}
+          {chartData.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-card border border-border rounded-xl p-5">
+                <h3 className="font-semibold text-foreground mb-4 text-sm">Accuracy Over Time</h3>
+                <ResponsiveContainer width="100%" height={180}>
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={30} />
+                    <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
+                    <Line type="monotone" dataKey="accuracy" stroke="var(--primary)" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
-            ))}
-          </div>
-        </div>
 
-        <div className="bg-card border border-border rounded-xl p-5">
-          <h3 className="font-semibold text-foreground mb-4 text-sm">Practice Calendar — July 2026</h3>
-          <div className="grid grid-cols-7 gap-1 mb-1">
-            {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
-              <div key={i} className="text-center text-[10px] text-muted-foreground">{d}</div>
-            ))}
+              <div className="bg-card border border-border rounded-xl p-5">
+                <h3 className="font-semibold text-foreground mb-4 text-sm">Weak Signs</h3>
+                {report.weak_signs.length === 0 ? (
+                  <div className="flex items-center justify-center h-40 text-xs text-muted-foreground">No weak signs — great work!</div>
+                ) : (
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {report.weak_signs.map(s => (
+                      <div key={s} className="flex items-center gap-2 bg-rose-950/20 border border-rose-900/30 rounded-xl px-3 py-2">
+                        <div className="w-7 h-7 rounded-lg bg-rose-950/40 border border-rose-900/40 flex items-center justify-center text-xs font-bold text-rose-400">{s}</div>
+                        <span className="text-xs text-rose-400">Needs practice</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Recommendations */}
+          {report.recommended_for_practice.length > 0 && (
+            <div className="bg-card border border-border rounded-xl p-5">
+              <h3 className="font-semibold text-foreground mb-3 text-sm">Recommended for Practice</h3>
+              <div className="flex flex-wrap gap-2">
+                {report.recommended_for_practice.map(s => (
+                  <span key={s} className="px-3 py-1.5 bg-primary/10 border border-primary/30 text-primary text-xs font-semibold rounded-lg">{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Certificate eligibility */}
+          <div className={`bg-card border rounded-xl p-5 ${report.certificate_eligible ? "border-emerald-900/40" : "border-border"}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-foreground text-sm mb-1">Certificate Eligibility</h3>
+                {report.certificate_eligible
+                  ? <p className="text-xs text-emerald-400">You qualify for a certificate! Go to Certificates to download it.</p>
+                  : <p className="text-xs text-muted-foreground">{report.certificate_reasons_failed[0] ?? "Keep practicing to qualify."}</p>
+                }
+              </div>
+              <Bdg label={report.certificate_eligible ? "Eligible" : "Not Yet"} v={report.certificate_eligible ? "success" : "default"} />
+            </div>
           </div>
-          <div className="grid grid-cols-7 gap-1">
-            {/* offset: July 1 is Wednesday (col 3) */}
-            {[0, 1].map(i => <div key={`off${i}`} />)}
-            {Array.from({ length: 31 }, (_, i) => {
-              const d = i + 1;
-              const practiced = d <= 15 && d !== 4 && d !== 10;
-              const isToday = d === 16;
-              return (
-                <div key={d} className={`aspect-square rounded flex items-center justify-center text-[10px] font-semibold ${
-                  isToday ? "bg-cyan-500 text-black" :
-                  practiced ? "bg-emerald-900/60 text-emerald-400" :
-                  "bg-[#0e1a30] text-muted-foreground"
-                }`}>
-                  {d}
+
+          {/* Progress report export (existing — CSV + PDF) */}
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={handleDownloadCSV}
+              disabled={csvLoading || !report}
+              className="flex items-center gap-2 bg-card border border-border hover:bg-hover disabled:opacity-60 text-foreground font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm"
+            >
+              <Download size={14} />
+              {csvLoading ? "Exporting CSV..." : "Export Report CSV"}
+            </button>
+            <button
+              onClick={handleDownloadPDF}
+              disabled={pdfLoading}
+              className="flex items-center gap-2 bg-primary hover:bg-primary/90 disabled:opacity-60 text-primary-foreground font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm"
+            >
+              <Download size={14} />
+              {pdfLoading ? "Generating PDF..." : "Download Progress Report PDF"}
+            </button>
+          </div>
+
+          {/* ── M4 Day 3: All 5 Report Types ────────────────────────────────────
+              Wired to real export router (export.py):
+                GET /export/{uid}/learning, /assessment, /accuracy, /certification-report
+              Each available as PDF or Excel. Progress report (above) covers the 5th type.
+          ── */}
+          <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">All Reports</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Download any of the 5 report types as PDF or Excel.
+              </p>
+            </div>
+
+            <div className="divide-y divide-border/50">
+              {(["learning", "assessment", "accuracy", "certification"] as const).map(type => (
+                <div key={type} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                  <span className="text-sm capitalize text-foreground">{type} Report</span>
+                  <div className="flex gap-2">
+                    {(["pdf", "excel"] as const).map(fmt => {
+                      const key = `${type}-${fmt}`;
+                      const busy = reportLoading === key;
+                      return (
+                        <button
+                          key={fmt}
+                          onClick={() => handleDownloadReport(type, fmt)}
+                          disabled={!!reportLoading}
+                          className="px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/50 hover:bg-muted text-foreground disabled:opacity-40 transition-colors flex items-center gap-1.5"
+                        >
+                          {busy
+                            ? <Loader2 size={10} className="animate-spin" />
+                            : <Download size={10} />
+                          }
+                          {fmt.toUpperCase()}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
-          <div className="flex items-center gap-4 mt-3 text-[10px] text-muted-foreground">
-            <span className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-emerald-900/60" />Practiced</span>
-            <span className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-cyan-500" />Today</span>
-            <span className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-[#0e1a30]" />Missed</span>
+        </>
+      )}
+
+      {/* ── AI service session stats (live, resets on restart) ── */}
+      {ai && (
+        <div className="bg-card border border-border rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-foreground text-sm">Live AI Session Stats</h3>
+            <Bdg label="Live from AI service" v="info" />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div><div className="text-2xl font-bold text-foreground">{ai.total_predictions}</div><div className="text-xs text-muted-foreground">Predictions</div></div>
+            <div><div className="text-2xl font-bold text-foreground">{Math.round(ai.average_confidence * 100)}%</div><div className="text-xs text-muted-foreground">Avg confidence</div></div>
+            <div><div className="text-2xl font-bold text-emerald-400">{ai.high_confidence_predictions}</div><div className="text-xs text-muted-foreground">High confidence</div></div>
+            <div><div className="text-2xl font-bold text-foreground">{ai.most_predicted_sign ?? "—"}</div><div className="text-xs text-muted-foreground">Most practiced</div></div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
-
-// ── Certificates ───────────────────────────────────────────────────────────
