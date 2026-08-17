@@ -5,9 +5,13 @@
 // today and is a one-line swap to the real fetch call once the backend
 // endpoint is confirmed live. Toggle per-function or globally with
 // USE_MOCKS.
+//
+// M4 Day 5: BASE_URL now reads from VITE_API_URL env var so the production
+// build points at the live deployed backend instead of localhost:8000.
+// Set in .env.production: VITE_API_URL=https://your-backend.onrender.com
 
-const BASE_URL = "http://localhost:8000";
-export const USE_MOCKS = true; // flip to false once backend is reachable
+const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+export const USE_MOCKS = false; // false = use real backend
 
 function getToken() {
   return localStorage.getItem("token");
@@ -52,11 +56,11 @@ export async function registerUser({ name, email, password, role }) {
   // Returns 201 + a full UserResponse, not just { message }.
   return request("/auth/register", {
     method: "POST",
-    body: JSON.stringify({ full_name: name, email, password }),
+    body: JSON.stringify({ full_name: name, email, password, role }),
   });
 }
 
-export async function loginUser({ email, password }) {
+export async function loginUser({ email, password, role }) {
   if (USE_MOCKS) {
     const data = {
       access_token: "mock-jwt-token",
@@ -73,16 +77,14 @@ export async function loginUser({ email, password }) {
     localStorage.setItem("role", data.user.roles[0]);
     return { ...data, role: data.user.roles[0] };
   }
-  // Real endpoint returns { access_token, user: { ...UserResponse, roles: [] } }
-  // — role comes back directly here, no separate /auth/profile call needed.
   const data = await request("/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, role }),
   });
   localStorage.setItem("token", data.access_token);
-  const role = data.user?.roles?.[0] ?? "learner";
-  localStorage.setItem("role", role);
-  return { ...data, role };
+  const returnedRole = data.user?.roles?.[0] ?? "learner";
+  localStorage.setItem("role", returnedRole);
+  return { ...data, role: returnedRole };
 }
 
 export async function getProfile() {
@@ -104,27 +106,59 @@ export function logoutUser() {
   localStorage.removeItem("role");
 }
 
+export async function updateProfile({ fullName, email }) {
+  if (USE_MOCKS) {
+    return delay({
+      user_id: "00000000-0000-0000-0000-000000000001",
+      full_name: fullName,
+      email,
+      roles: [localStorage.getItem("role") || "learner"],
+      created_at: new Date().toISOString(),
+    });
+  }
+  return request("/auth/me", {
+    method: "PUT",
+    body: JSON.stringify({ full_name: fullName, email }),
+  });
+}
+
+export async function changePassword({ oldPassword, newPassword }) {
+  if (USE_MOCKS) {
+    return delay({ message: "Password changed successfully." });
+  }
+  return request("/auth/me/password", {
+    method: "PUT",
+    body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+  });
+}
+
 // ── Courses / Lessons ────────────────────────────────────────────────────
-// ⚠️ PRODUCT GAP: as of 2026-07-19, Intern 2's backend has NO course-level
-// endpoint at all — only /courses/lessons (flat lesson list) and
-// /courses/lessons/{id}. There is no /courses or /courses/{id} route.
-// getCourses()/getCourseById() below stay mock-only until this is
-// resolved with Intern 2 — CourseCatalog.tsx currently has no real data
-// source to attach to. Flag this in stand-up before Day 7.
 export async function getCourses() {
   return delay([
-    { id: "1", title: "ASL Fundamentals", difficulty: "Beginner", lessons: 24,
-      desc: "Core signs, alphabet, and basic phrases.", hrs: "6 hrs", pct: 100, cat: "ASL" },
-    { id: "2", title: "ASL Intermediate", difficulty: "Intermediate", lessons: 32,
-      desc: "Emotions, questions, and sentence structure.", hrs: "9 hrs", pct: 68, cat: "ASL" },
-    { id: "3", title: "ASL Advanced Conversation", difficulty: "Advanced", lessons: 28,
-      desc: "Classifiers, complex grammar, and fluent ASL.", hrs: "12 hrs", pct: 0, cat: "ASL" },
-    { id: "4", title: "BSL Basics", difficulty: "Beginner", lessons: 20,
-      desc: "Introduction to British Sign Language.", hrs: "5 hrs", pct: 0, cat: "BSL" },
-    { id: "5", title: "Medical Sign Language", difficulty: "Intermediate", lessons: 18,
-      desc: "Healthcare vocabulary for clinical environments.", hrs: "4 hrs", pct: 12, cat: "Specialized" },
-    { id: "6", title: "Numbers & Math Signs", difficulty: "Beginner", lessons: 10,
-      desc: "Counting, arithmetic, and quantities.", hrs: "2 hrs", pct: 45, cat: "ASL" },
+    {
+      id: "1", title: "ASL Fundamentals", difficulty: "Beginner", lessons: 24,
+      desc: "Core signs, alphabet, and basic phrases.", hrs: "6 hrs", pct: 100, cat: "ASL"
+    },
+    {
+      id: "2", title: "ASL Intermediate", difficulty: "Intermediate", lessons: 32,
+      desc: "Emotions, questions, and sentence structure.", hrs: "9 hrs", pct: 68, cat: "ASL"
+    },
+    {
+      id: "3", title: "ASL Advanced Conversation", difficulty: "Advanced", lessons: 28,
+      desc: "Classifiers, complex grammar, and fluent ASL.", hrs: "12 hrs", pct: 0, cat: "ASL"
+    },
+    {
+      id: "4", title: "BSL Basics", difficulty: "Beginner", lessons: 20,
+      desc: "Introduction to British Sign Language.", hrs: "5 hrs", pct: 0, cat: "BSL"
+    },
+    {
+      id: "5", title: "Medical Sign Language", difficulty: "Intermediate", lessons: 18,
+      desc: "Healthcare vocabulary for clinical environments.", hrs: "4 hrs", pct: 12, cat: "Specialized"
+    },
+    {
+      id: "6", title: "Numbers & Math Signs", difficulty: "Beginner", lessons: 10,
+      desc: "Counting, arithmetic, and quantities.", hrs: "2 hrs", pct: 45, cat: "ASL"
+    },
   ]);
 }
 
@@ -135,25 +169,26 @@ export async function getCourseById(id) {
 export async function getLessons(moduleId) {
   if (USE_MOCKS) {
     return delay([
-      { lesson_id: 1, module_id: 1, title: "Letter A", description: "Introduction to the sign for A",
-        sequence_order: 1, difficulty_level: "beginner", is_published: true, created_at: new Date().toISOString() },
-      { lesson_id: 2, module_id: 1, title: "Letter B", description: "Introduction to the sign for B",
-        sequence_order: 2, difficulty_level: "beginner", is_published: true, created_at: new Date().toISOString() },
+      {
+        lesson_id: 1, module_id: 1, title: "Letter A", description: "Introduction to the sign for A",
+        sequence_order: 1, difficulty_level: "beginner", is_published: true, created_at: new Date().toISOString()
+      },
+      {
+        lesson_id: 2, module_id: 1, title: "Letter B", description: "Introduction to the sign for B",
+        sequence_order: 2, difficulty_level: "beginner", is_published: true, created_at: new Date().toISOString()
+      },
     ]);
   }
-  // Confirmed via schemas/course.py: GET /courses/lessons (optional
-  // ?module_id= filter), returns LessonResponse[] — { lesson_id, module_id,
-  // title, description, sequence_order, difficulty_level, is_published,
-  // created_at }.
   const qs = moduleId ? `?module_id=${moduleId}` : "";
   return request(`/courses/lessons${qs}`);
 }
 
 export async function getLessonById(id) {
   if (USE_MOCKS) {
-    return delay({ lesson_id: id, module_id: 1, title: "Letter A", description: "Introduction to the sign for A",
-      sequence_order: 1, difficulty_level: "beginner", is_published: true, created_at: new Date().toISOString() });
+    return delay({
+      lesson_id: id, module_id: 1, title: "Letter A", description: "Introduction to the sign for A",
+      sequence_order: 1, difficulty_level: "beginner", is_published: true, created_at: new Date().toISOString()
+    });
   }
-  // Confirmed: GET /courses/lessons/{lesson_id} -> LessonResponse
   return request(`/courses/lessons/${id}`);
 }

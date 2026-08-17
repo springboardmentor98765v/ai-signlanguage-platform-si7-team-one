@@ -58,7 +58,7 @@ export default function CourseCatalog({ go }: { go: (s: Screen) => void }) {
   );
 
   return (
-    <div className="p-6 space-y-5 max-w-6xl mx-auto">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-5 max-w-6xl mx-auto">
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-48 max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -83,7 +83,7 @@ export default function CourseCatalog({ go }: { go: (s: Screen) => void }) {
       </div>
 
       {loading && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="bg-card border border-border rounded-xl overflow-hidden animate-pulse">
               <div className="h-24 bg-surface" />
@@ -118,7 +118,7 @@ export default function CourseCatalog({ go }: { go: (s: Screen) => void }) {
       )}
 
       {!loading && !error && filtered.length > 0 && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(c => (
             <div key={c.id} className="bg-card border border-border rounded-xl overflow-hidden hover:border-primary/50 transition-all group">
               <div className="h-24 bg-gradient-to-br from-[#0e1a30] to-[#162035] flex items-center justify-center relative">

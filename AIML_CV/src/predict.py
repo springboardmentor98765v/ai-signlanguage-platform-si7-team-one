@@ -1,40 +1,94 @@
+"""
+predict.py
+
+Loads the trained XGBoost model and predicts the ASL gesture
+along with confidence and user-friendly feedback.
+"""
+
 import os
 import joblib
-import pandas as pd
+import numpy as np
 
-# -----------------------
+from feedback import generate_feedback
+
+# ==================================================
 # Paths
-# -----------------------
+# ==================================================
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATASET_DIR = os.path.join(BASE_DIR, "..", "dataset")
-MODEL_DIR = os.path.join(BASE_DIR, "..", "models")
 
-# -----------------------
+MODEL_DIR = os.path.join(
+    BASE_DIR,
+    "..",
+    "models"
+)
+
+MODEL_PATH = os.path.join(
+    MODEL_DIR,
+    "xgboost_landmark.pkl"
+)
+
+ENCODER_PATH = os.path.join(
+    MODEL_DIR,
+    "label_encoder.pkl"
+)
+
+# ==================================================
 # Load Model
-# -----------------------
-model = joblib.load(os.path.join(MODEL_DIR, "xgboost_model.pkl"))
-encoder = joblib.load(os.path.join(MODEL_DIR, "label_encoder.pkl"))
+# ==================================================
 
-# -----------------------
-# Load Test Dataset
-# -----------------------
-df = pd.read_csv(os.path.join(DATASET_DIR, "sign_mnist_test.csv"))
+print("Loading XGBoost Model...")
 
-print(f"Total Test Samples : {len(df)}")
+model = joblib.load(MODEL_PATH)
+encoder = joblib.load(ENCODER_PATH)
 
-sample = int(input("Enter sample index (0-7171): "))
+print("Model Loaded Successfully!")
 
-row = df.iloc[sample]
+# ==================================================
+# Prediction Function
+# ==================================================
 
-actual_label = row["label"]
+def predict_gesture(features):
+    """
+    Predict ASL gesture using extracted landmarks.
 
-image = row.drop("label").values.reshape(1, -1) / 255.0
+    Parameters
+    ----------
+    features : list
+        63 landmark values (21 landmarks × x,y,z)
 
-prediction = model.predict(image)
+    Returns
+    -------
+    dict
+        Prediction result with confidence and feedback.
+    """
 
-predicted_label = encoder.inverse_transform(prediction)
+    if len(features) != 63:
+        raise ValueError(
+            f"Expected 63 features but got {len(features)}"
+        )
 
-print("\n============================")
-print("Actual Label    :", actual_label)
-print("Predicted Label :", predicted_label[0])
-print("============================")
+    # Convert to NumPy
+    features = np.array(features).reshape(1, -1)
+
+    # Predict class
+    prediction = model.predict(features)
+
+    # Decode label
+    gesture = encoder.inverse_transform(prediction)[0]
+
+    # Prediction confidence (0.0 - 1.0)
+    confidence = float(model.predict_proba(features).max())
+
+    # Generate feedback
+    feedback = generate_feedback(confidence)
+
+    # Final response
+    return {
+        "gesture": gesture,
+        "confidence": round(confidence * 100, 2),
+        "confidence_level": feedback["confidence_level"],
+        "status": feedback["status"],
+        "feedback": feedback["feedback"],
+        "possible_issue": feedback["possible_issue"]
+    }

@@ -5,9 +5,13 @@
 // it's a single shared in-memory history across everyone hitting it,
 // resets on server restart. Confirmed against the real source
 // (src/api.py, history.py, analytics.py, dashboard.py) on 2026-07-19.
+//
+// M4 Day 5: AI_BASE_URL now reads from VITE_AI_API_URL env var so the
+// production build points at the live deployed AI service.
+// Set in .env.production: VITE_AI_API_URL=https://your-ai-service.onrender.com
 
-const AI_BASE_URL = "http://127.0.0.1:8001";
-export const AI_USE_MOCKS = true; // flip to false once you/team have this running locally
+const AI_BASE_URL = import.meta.env.VITE_AI_API_URL ?? "http://127.0.0.1:8001";
+export const AI_USE_MOCKS = false; // false = use real AI service
 
 const delay = (v) => new Promise((r) => setTimeout(() => r(v), 400));
 

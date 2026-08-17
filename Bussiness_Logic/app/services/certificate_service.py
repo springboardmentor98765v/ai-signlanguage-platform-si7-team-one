@@ -237,3 +237,128 @@ def generate_certificate_pdf(
     buffer.close()
 
     return pdf_bytes, certificate_id
+
+
+# ── Certification Exam certificate (Milestone 4, Day 2) ───────────────
+LEVEL_DISPLAY_NAMES = {
+    "beginner": "Beginner",
+    "intermediate": "Intermediate",
+    "advanced": "Advanced",
+    "professional": "Professional",
+}
+
+
+def generate_certification_certificate_pdf(
+    learner_name: str,
+    level: str,
+    score: float,
+    accuracy_percentage: float,
+    signs_covered: int,
+) -> tuple[bytes, str]:
+    """
+    Generates a Certification Exam certificate PDF in memory — distinct from
+    the practice-programme certificate above. Reuses the same visual style
+    but reflects exam-specific stats (level, exam score, signs covered) and
+    is worded as a formal certification rather than a practice milestone.
+    Caller (certification router) is responsible for checking the exam was
+    completed AND passed before calling this.
+    """
+    certificate_id = str(uuid_module.uuid4())[:8].upper()
+    issued_at = datetime.now(timezone.utc)
+    level_display = LEVEL_DISPLAY_NAMES.get(level, level.title())
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=2*cm,
+        leftMargin=2*cm,
+        topMargin=3*cm,
+        bottomMargin=2*cm,
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "cert_title",
+        parent=styles["Title"],
+        fontSize=28,
+        textColor=colors.HexColor("#1a237e"),
+        alignment=TA_CENTER,
+        spaceAfter=6,
+    )
+    subtitle_style = ParagraphStyle(
+        "cert_subtitle",
+        parent=styles["Normal"],
+        fontSize=14,
+        textColor=colors.HexColor("#37474f"),
+        alignment=TA_CENTER,
+        spaceAfter=20,
+    )
+    name_style = ParagraphStyle(
+        "cert_name",
+        parent=styles["Normal"],
+        fontSize=26,
+        textColor=colors.HexColor("#1565c0"),
+        alignment=TA_CENTER,
+        fontName="Helvetica-Bold",
+        spaceAfter=16,
+    )
+    level_style = ParagraphStyle(
+        "cert_level",
+        parent=styles["Normal"],
+        fontSize=18,
+        textColor=colors.HexColor("#2e7d32"),
+        alignment=TA_CENTER,
+        fontName="Helvetica-Bold",
+        spaceAfter=16,
+    )
+    body_style = ParagraphStyle(
+        "cert_body",
+        parent=styles["Normal"],
+        fontSize=12,
+        alignment=TA_CENTER,
+        spaceAfter=8,
+    )
+    small_style = ParagraphStyle(
+        "cert_small",
+        parent=styles["Normal"],
+        fontSize=9,
+        textColor=colors.HexColor("#78909c"),
+        alignment=TA_CENTER,
+        spaceAfter=4,
+    )
+
+    story = [
+        Spacer(1, 1*cm),
+        Paragraph("CERTIFICATE OF CERTIFICATION", title_style),
+        Paragraph("AI-Powered Sign Language Learning Platform", subtitle_style),
+        HRFlowable(width="80%", thickness=2, color=colors.HexColor("#1a237e"), spaceAfter=20),
+        Spacer(1, 0.5*cm),
+        Paragraph("This is to certify that", body_style),
+        Spacer(1, 0.3*cm),
+        Paragraph(learner_name, name_style),
+        Spacer(1, 0.3*cm),
+        Paragraph(
+            "has successfully passed the formal Certification Exam and demonstrated "
+            "proficiency in American Sign Language (ASL) hand signs at the",
+            body_style,
+        ),
+        Paragraph(f"{level_display} Level", level_style),
+        Spacer(1, 0.5*cm),
+        HRFlowable(width="60%", thickness=1, color=colors.HexColor("#90a4ae"), spaceAfter=16),
+        Paragraph(f"Exam Score: <b>{score}%</b>", body_style),
+        Paragraph(f"Accuracy: <b>{accuracy_percentage}%</b>", body_style),
+        Paragraph(f"Signs Covered: <b>{signs_covered}</b>", body_style),
+        Spacer(1, 0.8*cm),
+        HRFlowable(width="60%", thickness=1, color=colors.HexColor("#90a4ae"), spaceAfter=16),
+        Paragraph(f"Date Issued: <b>{issued_at.strftime('%B %d, %Y')}</b>", body_style),
+        Spacer(1, 1.5*cm),
+        Paragraph(f"Certificate ID: {certificate_id}", small_style),
+        Paragraph("Issued by: AI Sign Language Platform — Infosys Springboard", small_style),
+    ]
+
+    doc.build(story)
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+
+    return pdf_bytes, certificate_id

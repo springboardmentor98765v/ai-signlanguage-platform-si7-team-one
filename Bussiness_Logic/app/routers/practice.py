@@ -12,6 +12,7 @@ from app.schemas.practice import (
 from app.services.ai_client import get_prediction
 from app.services.assessment_service import assessment_store
 from app.services.practice_service import practice_store
+from app.services.notification_service import trigger_notifications
 
 router = APIRouter(prefix="/practice", tags=["practice"])
 
@@ -30,6 +31,7 @@ def end_practice_session(payload: PracticeSessionEndRequest):
         raise HTTPException(status_code=400, detail=str(e))
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    trigger_notifications(session.user_id)
     return practice_store.to_out(session)
 
 
