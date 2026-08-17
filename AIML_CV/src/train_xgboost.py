@@ -4,7 +4,15 @@ import pandas as pd
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import accuracy_score
+# from sklearn.metrics import accuracy_score
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    classification_report,
+    ConfusionMatrixDisplay
+)
+
+import matplotlib.pyplot as plt
 
 from xgboost import XGBClassifier
 
@@ -90,6 +98,76 @@ pred = model.predict(X_test)
 accuracy = accuracy_score(y_test, pred)
 
 print("\nAccuracy :", round(accuracy * 100, 2), "%")
+
+# -------------------------------------
+# Classification Report
+# -------------------------------------
+
+print("\nClassification Report\n")
+
+report = classification_report(
+    y_test,
+    pred,
+    target_names=encoder.classes_
+)
+
+print(report)
+
+# -------------------------------------
+# Confusion Matrix
+# -------------------------------------
+
+cm = confusion_matrix(y_test, pred)
+
+disp = ConfusionMatrixDisplay(
+    confusion_matrix=cm,
+    display_labels=encoder.classes_
+)
+
+fig, ax = plt.subplots(figsize=(12,10))
+
+disp.plot(
+    ax=ax,
+    cmap="Blues",
+    xticks_rotation=90
+)
+
+plt.title("Sign Language Confusion Matrix")
+
+plt.tight_layout()
+
+CONFUSION_MATRIX_PATH = os.path.join(
+    MODEL_DIR,
+    "confusion_matrix.png"
+)
+
+plt.savefig(CONFUSION_MATRIX_PATH)
+
+plt.show()
+
+print("\nConfusion Matrix Saved Successfully!")
+print(CONFUSION_MATRIX_PATH)
+
+# =====================================
+# Save Evaluation Report
+# =====================================
+
+REPORT_PATH = os.path.join(
+    MODEL_DIR,
+    "evaluation_report.txt"
+)
+
+with open(REPORT_PATH, "w") as file:
+
+    file.write("SIGN LANGUAGE MODEL EVALUATION\n")
+    file.write("=" * 40 + "\n\n")
+
+    file.write(f"Accuracy : {round(accuracy * 100, 2)}%\n\n")
+
+    file.write(report)
+
+print("\nEvaluation Report Saved Successfully!")
+print(REPORT_PATH)
 
 # =====================================
 # Save
