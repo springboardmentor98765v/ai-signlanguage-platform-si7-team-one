@@ -1,137 +1,110 @@
 # app/services/trainer_service.py
-
 from uuid import UUID
+
+import httpx
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException
 
-from app.models.instructor_student import InstructorStudent
+from app.core.config import settings
+from app.models.accessibility_trainer_learner import AccessibilityTrainerLearner
 from app.models.user import User
 
+
+# --- Local DB-backed trainer-learner mapping ---
 
 def get_assigned_learners(db: Session, trainer_id: UUID):
     return (
         db.query(User)
         .join(
-            InstructorStudent,
-            InstructorStudent.learner_id == User.user_id
+            AccessibilityTrainerLearner,
+            AccessibilityTrainerLearner.learner_id == User.user_id
         )
-        .filter(
-            InstructorStudent.instructor_id == trainer_id,
-            InstructorStudent.status == "active"
-        )
+        .filter(AccessibilityTrainerLearner.trainer_id == trainer_id)
         .all()
     )
 
 
-def get_learner_detail(
-    db: Session,
-    trainer_id: UUID,
-    learner_id: UUID
-):
+def get_learner_detail(db: Session, trainer_id: UUID, learner_id: UUID):
     verify_assignment(db, trainer_id, learner_id)
-
-    learner = (
-        db.query(User)
-        .filter(User.user_id == learner_id)
-        .first()
-    )
-
+    learner = db.query(User).filter(User.user_id == learner_id).first()
     if not learner:
-        raise HTTPException(
-            status_code=404,
-            detail="Learner not found"
-        )
-
+        raise HTTPException(404, "Learner not found")
     return learner
 
 
-def verify_assignment(
-    db: Session,
-    trainer_id: UUID,
-    learner_id: UUID
-):
+def verify_assignment(db: Session, trainer_id: UUID, learner_id: UUID):
     mapping = (
-        db.query(InstructorStudent)
+        db.query(AccessibilityTrainerLearner)
         .filter(
-            InstructorStudent.instructor_id == trainer_id,
-            InstructorStudent.learner_id == learner_id,
-            InstructorStudent.status == "active"
+            AccessibilityTrainerLearner.trainer_id == trainer_id,
+            AccessibilityTrainerLearner.learner_id == learner_id,
         )
         .first()
     )
-
     if not mapping:
-        raise HTTPException(
-            status_code=403,
-            detail="Learner not assigned to this trainer"
-        )
-
+        raise HTTPException(403, "Learner not assigned to this trainer")
     return mapping
 
 
 def assign_learner(db: Session, trainer_id: UUID, learner_id: UUID):
-    existing = (
-        db.query(InstructorStudent)
-        .filter(
-            InstructorStudent.instructor_id == trainer_id,
-            InstructorStudent.learner_id == learner_id,
-        )
-        .first()
-    )
+    if trainer_id == learner_id:
+        raise HTTPException(400, "A trainer cannot be assigned as their own learner")
 
-    if existing:
-        if existing.status == "active":
-            raise HTTPException(400, "Learner already assigned to this trainer")
-        # Reactivate a previously inactive mapping instead of creating a duplicate row
-        existing.status = "active"
-        db.commit()
-        db.refresh(existing)
-        return existing
-
-    mapping = InstructorStudent(
-        instructor_id=trainer_id,
-        learner_id=learner_id,
-        status="active",
-    )
+    mapping = AccessibilityTrainerLearner(trainer_id=trainer_id, learner_id=learner_id)
     db.add(mapping)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(400, "Learner already assigned to this trainer")
     db.refresh(mapping)
     return mapping
 
 
 def unassign_learner(db: Session, trainer_id: UUID, learner_id: UUID):
     mapping = (
-        db.query(InstructorStudent)
+        db.query(AccessibilityTrainerLearner)
         .filter(
-            InstructorStudent.instructor_id == trainer_id,
-            InstructorStudent.learner_id == learner_id,
-            InstructorStudent.status == "active",
+            AccessibilityTrainerLearner.trainer_id == trainer_id,
+            AccessibilityTrainerLearner.learner_id == learner_id,
         )
         .first()
     )
-
     if not mapping:
         raise HTTPException(404, "Assignment not found")
 
-    # Soft-delete via status flip, consistent with the active-status pattern
-    # used everywhere else in this file (get_assigned_learners, verify_assignment)
-    mapping.status = "inactive"
+    db.delete(mapping)
     db.commit()
 
 
-# --- Stubs: awaiting Intern 4's calculation logic ---
+# --- Bridge to Intern 4's Business Logic service (port 8002) ---
 
-def get_engagement(db: Session, learner_id: UUID):
-    raise HTTPException(501, "Not implemented - awaiting Intern 4's calculation logic")
+async def _call_logic_service(path: str, token: str) -> dict:
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        try:
+            resp = await client.get(
+                f"{settings.LOGIC_SERVICE_URL}{path}",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        except httpx.RequestError:
+            raise HTTPException(503, "Business Logic service unavailable")
 
-def get_skill_development(db: Session, learner_id: UUID):
-    raise HTTPException(501, "Not implemented - awaiting Intern 4's calculation logic")
+    if resp.status_code == 404:
+        raise HTTPException(404, "Data not found")
+    if resp.status_code == 403:
+        raise HTTPException(403, "Not authorized to view this data")
+    if resp.status_code != 200:
+        raise HTTPException(502, "Business Logic service returned an unexpected response")
 
-def get_assessment_analytics(db: Session, learner_id: UUID):
-    raise HTTPException(501, "Not implemented - awaiting Intern 4's calculation logic")
+    return resp.json()
 
-def get_certification_status(db: Session, learner_id: UUID):
-    raise HTTPException(501, "Not implemented - awaiting Intern 4's calculation logic")
 
-def get_dashboard_summary(db: Session, trainer_id: UUID):
-    raise HTTPException(501, "Not implemented - awaiting Intern 4's calculation logic")
+async def get_learner_analytics(trainer_id: UUID, learner_id: UUID, token: str):
+    """One call returns engagement + skill development + certification status combined."""
+    return await _call_logic_service(f"/trainer/{trainer_id}/learners/{learner_id}", token)
+
+
+async def get_dashboard_summary(trainer_id: UUID, token: str):
+    """Combined dashboard: summary card + all learners' analytics in one call."""
+    return await _call_logic_service(f"/trainer/{trainer_id}/dashboard", token)

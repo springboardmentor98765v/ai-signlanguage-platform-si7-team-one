@@ -87,3 +87,7 @@ app.include_router(admin.router)
 app.include_router(notification.router)  # M3
 
 app.include_router(trainer.router) #M4
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "gateway"}

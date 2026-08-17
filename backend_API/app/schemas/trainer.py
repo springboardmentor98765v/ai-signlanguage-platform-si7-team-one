@@ -1,8 +1,5 @@
 # app/schemas/trainer.py
-
-from datetime import date
 from uuid import UUID
-
 from pydantic import BaseModel, ConfigDict
 
 
@@ -19,49 +16,30 @@ class LearnerSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class EngagementResponse(BaseModel):
+class MessageResponse(BaseModel):
+    message: str
+
+
+# --- Matches Intern 4's actual response shape exactly ---
+
+class LearnerDetail(BaseModel):
     learner_id: UUID
-    sessions_last_7_days: int
-    sessions_last_30_days: int
-    last_active: date | None
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class SkillDevelopmentResponse(BaseModel):
-    learner_id: UUID
-    accuracy_trend: list[dict]
-    improvement_pct: float
-
-    model_config = ConfigDict(from_attributes=True)
+    engagement_level: str                    # "High" / "Medium" / "Low"
+    sessions_this_week: int
+    skill_development_trend: float | None     # % improvement, null if not enough data
+    avg_assessment_score: float                # 0-100
+    certification_status: str                  # "Certified" / "In Progress" / "Not Started"
+    highest_certified_level: str | None        # "beginner"/"intermediate"/"advanced"/"professional" or null
 
 
-class AssessmentAnalyticsResponse(BaseModel):
-    learner_id: UUID
-    average_score: float
-    weak_letters: list[str]
-    total_attempts: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class CertificationStatusResponse(BaseModel):
-    learner_id: UUID
-    certified: bool
-    level: str | None
-    date_issued: date | None
-
-    model_config = ConfigDict(from_attributes=True)
+class DashboardSummary(BaseModel):
+    avg_sessions_per_week: float
+    avg_assessment_score: float
+    certified_count: int
+    low_engagement_count: int
 
 
 class TrainerDashboardResponse(BaseModel):
     trainer_id: UUID
-    learners: list[LearnerSummary]
-    engagement: list[EngagementResponse]
-    skill_development: list[SkillDevelopmentResponse]
-    assessment_analytics: list[AssessmentAnalyticsResponse]
-    certification_status: list[CertificationStatusResponse]
-
-
-class MessageResponse(BaseModel):
-    message: str
+    summary: DashboardSummary
+    learners: list[LearnerDetail]
