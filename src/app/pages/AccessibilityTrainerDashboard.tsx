@@ -6,7 +6,10 @@ import {
 import { MCard } from "../components/shared/MCard";
 import { Bdg, PBar } from "../components/shared/Indicators";
 import { useAuth } from "../context/AuthContext";
-import { getTrainerDashboard } from "../services/businessApi";
+import {
+  assignLearnerToTrainer,
+  getTrainerDashboard,
+} from "../services/businessApi";
 
 // M4 Day 3 — wired to real data via GET /trainer/{trainer_id}/dashboard
 // (trainer_analytics.py, confirmed against real router + schema). Backend
@@ -63,6 +66,7 @@ function CertBdg({ status }: { status: TraineeRow["certificationStatus"] }) {
 export default function AccessibilityTrainerDashboard({ go }: { go: (s: any) => void }) {
   const { userId } = useAuth();
   const [search, setSearch] = useState("");
+  const [learnerId, setLearnerId] = useState("");
   const [trainees, setTrainees] = useState<TraineeRow[]>([]);
   const [summary, setSummary] = useState({
     assignedCount: 0,
@@ -72,7 +76,10 @@ export default function AccessibilityTrainerDashboard({ go }: { go: (s: any) => 
     lowEngagementCount: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [assigning, setAssigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const [assignSuccess, setAssignSuccess] = useState<string | null>(null);
 
   const trainerId = userId ?? "00000000-0000-0000-0000-000000000000";
 
@@ -99,6 +106,40 @@ export default function AccessibilityTrainerDashboard({ go }: { go: (s: any) => 
     fetchDashboard();
   }, [trainerId]);
 
+  const refreshDashboard = async () => {
+    const data = await getTrainerDashboard(trainerId);
+    setTrainees((data.learners ?? []).map(normalizeLearner));
+    setSummary({
+      assignedCount: data.assigned_learners_count,
+      avgSessions: Math.round(data.avg_sessions_per_week),
+      avgScore: Math.round(data.avg_assessment_score),
+      certifiedCount: data.certified_count,
+      lowEngagementCount: data.low_engagement_count,
+    });
+  };
+
+  const handleAssignLearner = async () => {
+    if (!learnerId.trim()) {
+      setAssignError("Enter a learner UUID first.");
+      return;
+    }
+
+    setAssigning(true);
+    setAssignError(null);
+    setAssignSuccess(null);
+
+    try {
+      await assignLearnerToTrainer(trainerId, learnerId.trim());
+      await refreshDashboard();
+      setAssignSuccess("Learner assigned successfully.");
+      setLearnerId("");
+    } catch (e) {
+      setAssignError("Could not assign learner. Check the UUID and try again.");
+    } finally {
+      setAssigning(false);
+    }
+  };
+
   const filteredTrainees = trainees.filter(t =>
     t.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -121,6 +162,37 @@ export default function AccessibilityTrainerDashboard({ go }: { go: (s: any) => 
       <div>
         <h2 className="text-lg font-bold text-foreground">Accessibility Trainer Dashboard</h2>
         <p className="text-muted-foreground text-sm">Learner engagement, skill development, and certification monitoring</p>
+      </div>
+
+      <div className="bg-card border border-border rounded-[14px] p-6" style={{ boxShadow: 'var(--card-shadow)' }}>
+        <div className="flex flex-col lg:flex-row lg:items-end gap-3">
+          <div className="flex-1">
+            <label className="block text-xs font-semibold text-foreground mb-2">Assign learner by UUID</label>
+            <input
+              value={learnerId}
+              onChange={e => setLearnerId(e.target.value)}
+              placeholder="Paste learner UUID here"
+              className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/50"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleAssignLearner}
+            disabled={assigning}
+            className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+          >
+            {assigning ? "Assigning..." : "Assign Learner"}
+          </button>
+        </div>
+        <div className="mt-3 text-xs text-muted-foreground">
+          Use this after creating a learner account. The dashboard will refresh immediately after assignment.
+        </div>
+        {assignError && (
+          <div className="mt-3 text-sm text-rose-400">{assignError}</div>
+        )}
+        {assignSuccess && (
+          <div className="mt-3 text-sm text-emerald-400">{assignSuccess}</div>
+        )}
       </div>
 
       {/* Assessment analytics summary */}

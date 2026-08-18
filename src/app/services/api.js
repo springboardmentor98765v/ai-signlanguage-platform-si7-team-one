@@ -1,17 +1,16 @@
-// Central API layer — realigned against Intern 2's actual backend code
-// (routers/auth.py, routers/courses.py) as of 2026-07-19, since the
-// original API_CONTRACT.md doc turned out to be stale in several places.
-// Base URL http://localhost:8000. Every function below returns mock data
-// today and is a one-line swap to the real fetch call once the backend
-// endpoint is confirmed live. Toggle per-function or globally with
-// USE_MOCKS.
+// Central API layer — aligned with backend role names.
 //
-// M4 Day 5: BASE_URL now reads from VITE_API_URL env var so the production
-// build points at the live deployed backend instead of localhost:8000.
-// Set in .env.production: VITE_API_URL=https://your-backend.onrender.com
+// Backend DB roles:
+//   learner
+//   instructor
+//   trainer
+//   admin
+//
+// Frontend roles use the exact same values.
+// There is NO "accessibility_trainer" role.
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
-export const USE_MOCKS = false; // false = use real backend
+export const USE_MOCKS = false;
 
 function getToken() {
   return localStorage.getItem("token");
@@ -19,6 +18,7 @@ function getToken() {
 
 async function request(path, options = {}) {
   const token = getToken();
+
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers: {
@@ -27,65 +27,141 @@ async function request(path, options = {}) {
       ...(options.headers || {}),
     },
   });
+
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`API ${path} failed: ${res.status} ${text}`);
   }
+
   return res.json();
 }
 
 const MOCK_DELAY = 300;
-const delay = (v) => new Promise((r) => setTimeout(() => r(v), MOCK_DELAY));
+const delay = (v) =>
+  new Promise((r) => setTimeout(() => r(v), MOCK_DELAY));
 
-// ── Auth ──────────────────────────────────────────────────────────────────
-// NOTE: realigned against Intern 2's actual routers/auth.py + courses.py
-// (2026-07-19), which diverge from the original API_CONTRACT.md doc in
-// several ways — see comments on each function below.
-export async function registerUser({ name, email, password, role }) {
+
+// ─────────────────────────────────────────────────────────────
+// ROLE HELPERS
+// ─────────────────────────────────────────────────────────────
+//
+// Backend and frontend use EXACTLY the same role names:
+//
+// learner
+// instructor
+// trainer
+// admin
+//
+
+function toBackendRole(role) {
+  return role;
+}
+
+function toFrontendRole(backendRoles = []) {
+  if (backendRoles.includes("trainer")) return "trainer";
+  if (backendRoles.includes("admin")) return "admin";
+  if (backendRoles.includes("instructor")) return "instructor";
+  if (backendRoles.includes("learner")) return "learner";
+
+  return "learner";
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// AUTH
+// ─────────────────────────────────────────────────────────────
+
+export async function registerUser({
+  name,
+  email,
+  password,
+  role,
+}) {
   if (USE_MOCKS) {
     return delay({
       user_id: "00000000-0000-0000-0000-000000000001",
       full_name: name,
       email,
-      roles: ["learner"],
+      roles: [role],
       created_at: new Date().toISOString(),
     });
   }
-  // Real endpoint ignores `role` — every new user is created as "learner"
-  // server-side (see DEFAULT_ROLE in auth.py). Field is full_name, not name.
-  // Returns 201 + a full UserResponse, not just { message }.
+
   return request("/auth/register", {
     method: "POST",
-    body: JSON.stringify({ full_name: name, email, password, role }),
+    body: JSON.stringify({
+      full_name: name,
+      email,
+      password,
+      requested_role: toBackendRole(role),
+    }),
   });
 }
 
-export async function loginUser({ email, password, role }) {
+
+export async function loginUser({
+  email,
+  password,
+  role,
+}) {
   if (USE_MOCKS) {
+    const mockRole = role ?? "learner";
+
     const data = {
       access_token: "mock-jwt-token",
       token_type: "bearer",
+
       user: {
         user_id: "00000000-0000-0000-0000-000000000001",
         full_name: "Maya Chen",
         email,
-        roles: [localStorage.getItem("role") || "learner"],
+        roles: [mockRole],
         created_at: new Date().toISOString(),
       },
     };
+
+    const frontendRole = toFrontendRole(data.user.roles);
+
     localStorage.setItem("token", data.access_token);
-    localStorage.setItem("role", data.user.roles[0]);
-    return { ...data, role: data.user.roles[0] };
+    localStorage.setItem("role", frontendRole);
+    localStorage.setItem("user_id", data.user.user_id);
+
+    return {
+      ...data,
+      role: frontendRole,
+    };
   }
+
+  // IMPORTANT:
+  // If frontend role is "trainer", backend receives "trainer".
+  const backendRole = toBackendRole(role);
+
   const data = await request("/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email, password, role }),
+    body: JSON.stringify({
+      email,
+      password,
+      role: backendRole,
+    }),
   });
+
+  const backendRoles = data.user?.roles ?? [];
+
+  const frontendRole = toFrontendRole(backendRoles);
+
   localStorage.setItem("token", data.access_token);
-  const returnedRole = data.user?.roles?.[0] ?? "learner";
-  localStorage.setItem("role", returnedRole);
-  return { ...data, role: returnedRole };
+  localStorage.setItem("role", frontendRole);
+  localStorage.setItem(
+    "user_id",
+    data.user?.user_id ?? ""
+  );
+
+  return {
+    ...data,
+    role: frontendRole,
+  };
 }
+
 
 export async function getProfile() {
   if (USE_MOCKS) {
@@ -93,102 +169,427 @@ export async function getProfile() {
       user_id: "00000000-0000-0000-0000-000000000001",
       full_name: "Maya Chen",
       email: "maya.chen@example.com",
-      roles: [localStorage.getItem("role") || "learner"],
+      roles: [
+        localStorage.getItem("role") || "learner",
+      ],
       created_at: new Date().toISOString(),
     });
   }
-  // Real response: UserResponse { user_id, full_name, email, roles: [], created_at }
+
   return request("/auth/profile");
 }
+
 
 export function logoutUser() {
   localStorage.removeItem("token");
   localStorage.removeItem("role");
+  localStorage.removeItem("user_id");
 }
 
-export async function updateProfile({ fullName, email }) {
+
+export async function updateProfile({
+  fullName,
+  email,
+}) {
   if (USE_MOCKS) {
     return delay({
       user_id: "00000000-0000-0000-0000-000000000001",
       full_name: fullName,
       email,
-      roles: [localStorage.getItem("role") || "learner"],
+      roles: [
+        localStorage.getItem("role") || "learner",
+      ],
       created_at: new Date().toISOString(),
     });
   }
+
   return request("/auth/me", {
     method: "PUT",
-    body: JSON.stringify({ full_name: fullName, email }),
+    body: JSON.stringify({
+      full_name: fullName,
+      email,
+    }),
   });
 }
 
-export async function changePassword({ oldPassword, newPassword }) {
+
+export async function changePassword({
+  oldPassword,
+  newPassword,
+}) {
   if (USE_MOCKS) {
-    return delay({ message: "Password changed successfully." });
+    return delay({
+      message: "Password changed successfully.",
+    });
   }
+
   return request("/auth/me/password", {
     method: "PUT",
-    body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+    body: JSON.stringify({
+      old_password: oldPassword,
+      new_password: newPassword,
+    }),
   });
 }
 
-// ── Courses / Lessons ────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────
+// COURSES / LESSONS
+// ─────────────────────────────────────────────────────────────
+
 export async function getCourses() {
   return delay([
     {
-      id: "1", title: "ASL Fundamentals", difficulty: "Beginner", lessons: 24,
-      desc: "Core signs, alphabet, and basic phrases.", hrs: "6 hrs", pct: 100, cat: "ASL"
+      id: "1",
+      title: "ASL Fundamentals",
+      difficulty: "Beginner",
+      lessons: 24,
+      desc: "Core signs, alphabet, and basic phrases.",
+      hrs: "6 hrs",
+      pct: 100,
+      cat: "ASL",
     },
     {
-      id: "2", title: "ASL Intermediate", difficulty: "Intermediate", lessons: 32,
-      desc: "Emotions, questions, and sentence structure.", hrs: "9 hrs", pct: 68, cat: "ASL"
+      id: "2",
+      title: "ASL Intermediate",
+      difficulty: "Intermediate",
+      lessons: 32,
+      desc: "Emotions, questions, and sentence structure.",
+      hrs: "9 hrs",
+      pct: 68,
+      cat: "ASL",
     },
     {
-      id: "3", title: "ASL Advanced Conversation", difficulty: "Advanced", lessons: 28,
-      desc: "Classifiers, complex grammar, and fluent ASL.", hrs: "12 hrs", pct: 0, cat: "ASL"
+      id: "3",
+      title: "ASL Advanced Conversation",
+      difficulty: "Advanced",
+      lessons: 28,
+      desc: "Classifiers, complex grammar, and fluent ASL.",
+      hrs: "12 hrs",
+      pct: 0,
+      cat: "ASL",
     },
     {
-      id: "4", title: "BSL Basics", difficulty: "Beginner", lessons: 20,
-      desc: "Introduction to British Sign Language.", hrs: "5 hrs", pct: 0, cat: "BSL"
+      id: "4",
+      title: "BSL Basics",
+      difficulty: "Beginner",
+      lessons: 20,
+      desc: "Introduction to British Sign Language.",
+      hrs: "5 hrs",
+      pct: 0,
+      cat: "BSL",
     },
     {
-      id: "5", title: "Medical Sign Language", difficulty: "Intermediate", lessons: 18,
-      desc: "Healthcare vocabulary for clinical environments.", hrs: "4 hrs", pct: 12, cat: "Specialized"
+      id: "5",
+      title: "Medical Sign Language",
+      difficulty: "Intermediate",
+      lessons: 18,
+      desc: "Healthcare vocabulary for clinical environments.",
+      hrs: "4 hrs",
+      pct: 12,
+      cat: "Specialized",
     },
     {
-      id: "6", title: "Numbers & Math Signs", difficulty: "Beginner", lessons: 10,
-      desc: "Counting, arithmetic, and quantities.", hrs: "2 hrs", pct: 45, cat: "ASL"
+      id: "6",
+      title: "Numbers & Math Signs",
+      difficulty: "Beginner",
+      lessons: 10,
+      desc: "Counting, arithmetic, and quantities.",
+      hrs: "2 hrs",
+      pct: 45,
+      cat: "ASL",
     },
   ]);
 }
 
+
 export async function getCourseById(id) {
-  return delay({ id, title: "Alphabet Basics", difficulty: "Beginner", description: "Learn the alphabet in sign language." });
+  return delay({
+    id,
+    title: "Alphabet Basics",
+    difficulty: "Beginner",
+    description:
+      "Learn the alphabet in sign language.",
+  });
 }
+
 
 export async function getLessons(moduleId) {
   if (USE_MOCKS) {
     return delay([
       {
-        lesson_id: 1, module_id: 1, title: "Letter A", description: "Introduction to the sign for A",
-        sequence_order: 1, difficulty_level: "beginner", is_published: true, created_at: new Date().toISOString()
+        lesson_id: 1,
+        module_id: 1,
+        title: "Letter A",
+        description:
+          "Introduction to the sign for A",
+        sequence_order: 1,
+        difficulty_level: "beginner",
+        is_published: true,
+        created_at: new Date().toISOString(),
       },
       {
-        lesson_id: 2, module_id: 1, title: "Letter B", description: "Introduction to the sign for B",
-        sequence_order: 2, difficulty_level: "beginner", is_published: true, created_at: new Date().toISOString()
+        lesson_id: 2,
+        module_id: 1,
+        title: "Letter B",
+        description:
+          "Introduction to the sign for B",
+        sequence_order: 2,
+        difficulty_level: "beginner",
+        is_published: true,
+        created_at: new Date().toISOString(),
       },
     ]);
   }
-  const qs = moduleId ? `?module_id=${moduleId}` : "";
+
+  const qs = moduleId
+    ? `?module_id=${moduleId}`
+    : "";
+
   return request(`/courses/lessons${qs}`);
 }
+
 
 export async function getLessonById(id) {
   if (USE_MOCKS) {
     return delay({
-      lesson_id: id, module_id: 1, title: "Letter A", description: "Introduction to the sign for A",
-      sequence_order: 1, difficulty_level: "beginner", is_published: true, created_at: new Date().toISOString()
+      lesson_id: id,
+      module_id: 1,
+      title: "Letter A",
+      description:
+        "Introduction to the sign for A",
+      sequence_order: 1,
+      difficulty_level: "beginner",
+      is_published: true,
+      created_at: new Date().toISOString(),
     });
   }
+
   return request(`/courses/lessons/${id}`);
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// INSTRUCTOR
+// ─────────────────────────────────────────────────────────────
+
+export async function getMyStudents() {
+  if (USE_MOCKS) {
+    return delay([
+      {
+        user_id:
+          "00000000-0000-0000-0000-000000000010",
+        full_name: "Marcus Johnson",
+        email: "marcus@example.com",
+      },
+      {
+        user_id:
+          "00000000-0000-0000-0000-000000000011",
+        full_name: "Priya Patel",
+        email: "priya@example.com",
+      },
+      {
+        user_id:
+          "00000000-0000-0000-0000-000000000012",
+        full_name: "Leo Finch",
+        email: "leo@example.com",
+      },
+      {
+        user_id:
+          "00000000-0000-0000-0000-000000000013",
+        full_name: "Amara Osei",
+        email: "amara@example.com",
+      },
+      {
+        user_id:
+          "00000000-0000-0000-0000-000000000014",
+        full_name: "Tom Nguyen",
+        email: "tom@example.com",
+      },
+    ]);
+  }
+
+  return request("/instructor/students");
+}
+
+
+export async function assignStudent(learnerId) {
+  if (USE_MOCKS) {
+    return delay({
+      message: "Student assigned",
+    });
+  }
+
+  return request(
+    `/instructor/assign-student/${learnerId}`,
+    {
+      method: "POST",
+    }
+  );
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// ADMIN
+// ─────────────────────────────────────────────────────────────
+
+export async function adminListUsers() {
+  if (USE_MOCKS) {
+    return delay([
+      {
+        user_id: "1",
+        full_name: "Maya Chen",
+        email: "maya@example.com",
+        is_active: true,
+        roles: ["learner"],
+      },
+      {
+        user_id: "2",
+        full_name: "Marcus Johnson",
+        email: "marcus@example.com",
+        is_active: true,
+        roles: ["learner"],
+      },
+      {
+        user_id: "3",
+        full_name: "Dr. Anya Roberts",
+        email: "anya@example.com",
+        is_active: true,
+        roles: ["instructor"],
+      },
+      {
+        user_id: "4",
+        full_name: "Priya Patel",
+        email: "priya@example.com",
+        is_active: false,
+        roles: ["learner"],
+      },
+      {
+        user_id: "5",
+        full_name: "Leo Finch",
+        email: "leo@example.com",
+        is_active: true,
+        roles: ["learner"],
+      },
+      {
+        user_id: "6",
+        full_name: "Admin User",
+        email: "admin@example.com",
+        is_active: true,
+        roles: ["admin"],
+      },
+      {
+        user_id: "7",
+        full_name: "Trainer User",
+        email: "trainer@example.com",
+        is_active: true,
+        roles: ["trainer"],
+      },
+    ]);
+  }
+
+  return request("/admin/users");
+}
+
+
+export async function adminToggleUserStatus(
+  userId,
+  isActive
+) {
+  if (USE_MOCKS) {
+    return delay({
+      message: isActive
+        ? "User activated"
+        : "User deactivated",
+    });
+  }
+
+  return request(
+    `/admin/users/${userId}/status?is_active=${isActive}`,
+    {
+      method: "PATCH",
+    }
+  );
+}
+
+
+export async function adminChangeUserRole(
+  userId,
+  roleName
+) {
+  if (USE_MOCKS) {
+    return delay({
+      message: `Role '${roleName}' added to user`,
+    });
+  }
+
+  return request(
+    `/admin/users/${userId}/role?role_name=${encodeURIComponent(
+      roleName
+    )}`,
+    {
+      method: "PATCH",
+    }
+  );
+}
+
+
+export async function adminBulkAction(
+  action,
+  userIds
+) {
+  if (USE_MOCKS) {
+    return delay({
+      updated_count: userIds.length,
+      failed_ids: [],
+    });
+  }
+
+  return request("/admin/users/bulk-action", {
+    method: "POST",
+    body: JSON.stringify({
+      action,
+      user_ids: userIds,
+    }),
+  });
+}
+
+
+export async function adminBulkUploadLessons(
+  csvFile
+) {
+  const token = getToken();
+
+  const formData = new FormData();
+
+  formData.append(
+    "file",
+    csvFile,
+    csvFile.name
+  );
+
+  const res = await fetch(
+    `${BASE_URL}/admin/lessons/bulk-upload`,
+    {
+      method: "POST",
+      headers: {
+        ...(token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : {}),
+      },
+      body: formData,
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+
+    throw new Error(
+      `Bulk upload failed: ${res.status} ${text}`
+    );
+  }
+
+  return res.json();
 }
