@@ -1,36 +1,21 @@
 """
-Accessibility Trainer Dashboard — Pydantic Schemas (Milestone 4, Day 3)
+Accessibility Trainer Dashboard — Pydantic Schemas (updated post Day 3)
 
-Powers the Accessibility Trainer Dashboard described in the original
-project document (Section 11, 'Dashboard & Analytics') and required by
-the M4 SRS (Section 4/5, Intern 4 + Intern 1 + Intern 2). Aggregates
-engagement, skill development, assessment analytics, and certification
-status for the learners assigned to a given trainer.
+AssignLearnerRequest and TrainerAssignmentOut removed — assignment is
+now owned by Intern 2's service. Only analytics-facing schemas remain.
 """
 
 from pydantic import BaseModel
 from uuid import UUID
-from datetime import datetime
 from typing import List, Optional
-
-
-class AssignLearnerRequest(BaseModel):
-    trainer_id: UUID
-    learner_id: UUID
-
-
-class TrainerAssignmentOut(BaseModel):
-    trainer_id: UUID
-    learner_id: UUID
-    assigned_at: datetime
 
 
 class LearnerAnalyticsOut(BaseModel):
     learner_id: UUID
     sessions_this_week: int
     engagement_level: str            # "High" | "Medium" | "Low"
-    avg_assessment_score: float      # 0-100, averaged weighted score across sessions
-    skill_development_trend: Optional[float] = None  # % change vs previous week, None if not enough data
+    avg_assessment_score: float
+    skill_development_trend: Optional[float] = None
     certification_status: str        # "Certified" | "In Progress" | "Not Started"
     highest_certified_level: Optional[str] = None
 

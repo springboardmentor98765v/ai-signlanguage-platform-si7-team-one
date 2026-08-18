@@ -144,8 +144,6 @@ def generate_feedback_items(
             message=f"AI detected a possible issue: {possible_issue}",
             severity=Severity.medium,
         ))
-
-    return items
     # ── 1. Primary score-based feedback ──────────────────────────────
     if score >= 85:
         items.append(FeedbackItem(

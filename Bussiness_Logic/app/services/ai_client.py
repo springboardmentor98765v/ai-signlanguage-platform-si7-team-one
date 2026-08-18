@@ -94,7 +94,9 @@ def get_prediction(
     return AIPredictionResult(
         success=True,
         predicted_sign=data.get("prediction"),
-        confidence=data.get("confidence"),
+
+        confidence=min(1.0, max(0.0, (data.get("confidence") or 0.0) / 100.0)),
+
         confidence_level=data.get("confidence_level"),
         gesture_quality=data.get("gesture_quality"),
         suggestion=data.get("suggestion"),
