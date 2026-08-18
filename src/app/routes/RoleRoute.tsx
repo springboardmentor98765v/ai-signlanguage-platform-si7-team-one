@@ -1,16 +1,12 @@
-import { Navigate, Outlet, useOutletContext } from "react-router";
+import {
+  Navigate,
+  Outlet,
+  useOutletContext,
+} from "react-router";
+
 import { useAuth } from "../context/AuthContext";
 import type { Role } from "../lib/types";
 
-// M4 Day 1 fix — ProtectedRoute only checks "is logged in", not "is this
-// role allowed here". Any authenticated user could type /trainer or /admin
-// into the URL bar and see it, regardless of their actual role. This wraps
-// role-specific route groups (Instructor, Accessibility Trainer, Admin)
-// and redirects anyone whose role isn't in `allow` back to their own home.
-//
-// M4 Day 4 fix — forward the Outlet context ({ go }) from AppShell through
-// RoleRoute so GoPage can destructure it. Without this, go is undefined
-// for any page inside a RoleRoute wrapper.
 const ROLE_HOME: Record<Role, string> = {
   learner: "/dashboard",
   instructor: "/instructor",
@@ -18,9 +14,16 @@ const ROLE_HOME: Record<Role, string> = {
   admin: "/admin",
 };
 
-export function RoleRoute({ allow }: { allow: Role[] }) {
+export function RoleRoute({
+  allow,
+}: {
+  allow: Role[];
+}) {
   const { role, loading } = useAuth();
-  const ctx = useOutletContext<{ go: Function }>();
+
+  const ctx = useOutletContext<{
+    go: Function;
+  }>();
 
   if (loading) {
     return (
@@ -31,9 +34,13 @@ export function RoleRoute({ allow }: { allow: Role[] }) {
   }
 
   if (!allow.includes(role)) {
-    return <Navigate to={ROLE_HOME[role] ?? "/dashboard"} replace />;
+    return (
+      <Navigate
+        to={ROLE_HOME[role] ?? "/dashboard"}
+        replace
+      />
+    );
   }
 
-  // Forward the context from AppShell's Outlet so GoPage receives go
   return <Outlet context={ctx} />;
 }

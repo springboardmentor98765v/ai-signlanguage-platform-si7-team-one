@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import type { Role } from "../lib/types";
-import { getProfile, logoutUser } from "../services/api";
+import { logoutUser } from "../services/api";
+
+const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -28,20 +30,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = localStorage.getItem("token");
     const storedRole = localStorage.getItem("role") as Role | null;
     const storedUserId = localStorage.getItem("user_id");
-    if (token) {
-      setIsAuthenticated(true);
-      setRoleState(storedRole || "learner");
-      setUserId(storedUserId);
-      getProfile().catch(() => {
-        // token invalid/expired — force logout
-        logoutUser();
-        setIsAuthenticated(false);
-      }).then((profile) => {
-        if (profile?.full_name) setFullName(profile.full_name);
-      }).finally(() => setLoading(false));
-    } else {
+
+    if (!token) {
       setLoading(false);
+      return;
     }
+
+    // Restore session immediately from localStorage — user stays logged in
+    // while we verify in the background.
+    setIsAuthenticated(true);
+    setRoleState(storedRole || "learner");
+    setUserId(storedUserId);
+
+    // Verify token with the backend. Only force-logout on a real 401/403
+    // (bad/expired token). Network errors or 5xx keep the session alive so
+    // a backend restart or flaky connection doesn't log the user out.
+    fetch(`${BASE_URL}/auth/profile`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => {
+        if (res.status === 401 || res.status === 403) {
+          // Token is genuinely invalid — log out.
+          logoutUser();
+          setIsAuthenticated(false);
+          return null;
+        }
+        return res.ok ? res.json() : null;
+      })
+      .then((profile) => {
+        if (profile?.full_name) setFullName(profile.full_name);
+      })
+      .catch(() => {
+        // Network error / backend down — keep session, don't log out.
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const login = (r: Role, token?: string, uid?: string, name?: string) => {

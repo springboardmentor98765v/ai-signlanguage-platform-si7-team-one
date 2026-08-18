@@ -43,33 +43,41 @@ export default function Certificates({ go }: { go: (s: Screen) => void }) {
   useEffect(() => {
     const fetchAll = async () => {
       setLoading(true);
+
+      // Profile — main backend (port 8000). Fail silently, fall back to role name.
       try {
-        // Get real learner name for the certificate
         const profile = await getProfile();
         setLearnerName(profile.full_name ?? role);
+      } catch {
+        setLearnerName(role);
+      }
 
+      // Certificate eligibility + recommendations — business logic (port 8002).
+      try {
         const [elig, recs] = await Promise.all([
           getCertificateEligibility(uid),
           getRecommendations(uid),
         ]);
         setEligibility(elig);
         setRecommendations(recs.recommendations ?? []);
-
-        // Feedback for the most recent session (stored by PracticeScreen)
-        const recentSessionId = localStorage.getItem("current_session_id");
-        if (recentSessionId) {
-          try {
-            const fb = await getFeedback(recentSessionId);
-            setFeedback(fb.feedback ?? []);
-          } catch {
-            // no feedback yet for this session — that's fine
-          }
-        }
       } catch (e) {
         setError("Couldn't load certificate data. Is the Business Logic service running on port 8002?");
-      } finally {
         setLoading(false);
+        return;
       }
+
+      // Feedback — optional, fail silently.
+      const recentSessionId = localStorage.getItem("current_session_id");
+      if (recentSessionId) {
+        try {
+          const fb = await getFeedback(recentSessionId);
+          setFeedback(fb.feedback ?? []);
+        } catch {
+          // no feedback yet — that's fine
+        }
+      }
+
+      setLoading(false);
     };
     fetchAll();
   }, [uid]);
@@ -98,7 +106,6 @@ export default function Certificates({ go }: { go: (s: Screen) => void }) {
   if (loading) {
     return (
       <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6">
-        {/* Eligibility card skeleton */}
         <div className="bg-card border border-border rounded-[14px] p-6 animate-pulse" style={{ boxShadow: "var(--card-shadow)" }}>
           <div className="flex items-center justify-between mb-4">
             <div className="h-4 w-40 bg-muted rounded" />
@@ -111,7 +118,6 @@ export default function Certificates({ go }: { go: (s: Screen) => void }) {
           </div>
           <div className="h-10 w-48 bg-muted rounded-xl" />
         </div>
-        {/* Feedback card skeleton */}
         <div className="bg-card border border-border rounded-[14px] p-6 animate-pulse" style={{ boxShadow: "var(--card-shadow)" }}>
           <div className="h-4 w-48 bg-muted rounded mb-4" />
           <div className="space-y-3">
@@ -225,7 +231,7 @@ export default function Certificates({ go }: { go: (s: Screen) => void }) {
         </div>
       )}
 
-      {/* ── M4 Day 3: Certification Exam entry point ── */}
+      {/* ── Certification Exam entry point ── */}
       <div className="bg-card border border-border rounded-xl p-5 text-center space-y-3">
         <Award size={24} className="mx-auto text-primary" />
         <div>
