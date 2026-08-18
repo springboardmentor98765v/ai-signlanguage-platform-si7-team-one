@@ -83,11 +83,9 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
     "/login",
     response_model=TokenPairResponse,
     summary="Log in and receive access + refresh tokens",
-    description="Rate limited to 5 attempts per minute per IP (M2), and separately to 5 "
-                 "attempts per minute per account (M3 Day 6) to prevent brute-force attacks "
-                 "that rotate IPs. Deactivated accounts are blocked from logging in. "
-                 "Roles are embedded in the access token at login time. "
-                 "Use the refresh token with /auth/refresh to get a new access token without re-entering credentials.",
+    description="Rate limited to 5 attempts per minute per IP and account. "
+            "The selected role must be assigned to the user. "
+            "The user's roles and selected login role are embedded in the access token.",
 )
 @limiter.limit("5/minute")
 def login(request: Request, payload: UserLogin, db: Session = Depends(get_db)):
@@ -120,11 +118,31 @@ def login(request: Request, payload: UserLogin, db: Session = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is inactive")
 
+    # Validate the role selected during login
+    selected_role = (
+        db.query(Role)
+        .join(UserRole, UserRole.role_id == Role.role_id)
+        .filter(
+            UserRole.user_id == user.user_id,
+            Role.role_name == payload.role
+        )
+    .first()
+    )
+    if not selected_role:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"You do not have the '{payload.role}' role"
+    )
     # Successful login — clear this account's failed-attempt counter
     reset_attempts(account_key)
 
     roles = get_user_roles(user)
-    access_token = create_access_token({"sub": str(user.user_id), "roles": roles})
+
+    access_token = create_access_token({
+        "sub": str(user.user_id),
+        "roles": roles,
+        "selected_role": selected_role.role_name,
+    })
 
     raw_refresh, refresh_hash = generate_refresh_token()
     db.add(RefreshToken(

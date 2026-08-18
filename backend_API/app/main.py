@@ -12,6 +12,9 @@ from app.routers import auth, courses, health, predict, instructor, admin, notif
 
 from fastapi.encoders import jsonable_encoder
 
+from app.routers import trainer
+
+
 app = FastAPI(
     title="Sign Language Platform API",
     description="Backend API for the AI-Powered Sign Language Learning & Assessment Platform.",
@@ -32,7 +35,10 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost",
+
         "http://127.0.0.1",
+
+
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:3000",
@@ -83,3 +89,9 @@ app.include_router(predict.router)
 app.include_router(instructor.router)
 app.include_router(admin.router)
 app.include_router(notification.router)  # M3
+
+app.include_router(trainer.router) #M4
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "gateway"}
