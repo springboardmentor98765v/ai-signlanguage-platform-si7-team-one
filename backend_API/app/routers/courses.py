@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
@@ -7,6 +8,70 @@ from app.schemas.course import LessonCreate, LessonResponse
 from app.core.security import require_role
 
 router = APIRouter(prefix="/courses", tags=["Courses"])
+
+
+class CourseSummary(BaseModel):
+    id: int
+    title: str
+    description: str | None = None
+    difficulty: str
+    category: str
+    lessons: int = 0
+
+
+@router.get("", response_model=list[CourseSummary])
+def list_courses(db: Session = Depends(get_db)):
+    """Group published lessons by module_id into course-like summaries."""
+    lessons = (
+        db.query(Lesson)
+        .filter(Lesson.is_published.is_(True))
+        .order_by(Lesson.module_id, Lesson.sequence_order)
+        .all()
+    )
+
+    modules: dict[int, list[Lesson]] = {}
+    for l in lessons:
+        modules.setdefault(l.module_id, []).append(l)
+
+    courses = []
+    for module_id, module_lessons in sorted(modules.items()):
+        first = module_lessons[0]
+        courses.append(
+            CourseSummary(
+                id=module_id,
+                title=f"Module {module_id}",
+                description=first.description,
+                difficulty=first.difficulty_level,
+                category=first.category,
+                lessons=len(module_lessons),
+            )
+        )
+    return courses
+
+
+@router.get(
+    "/{course_id}",
+    response_model=CourseSummary,
+    summary="Get a course (module) by ID",
+)
+def get_course(course_id: int, db: Session = Depends(get_db)):
+    lessons = (
+        db.query(Lesson)
+        .filter(Lesson.module_id == course_id, Lesson.is_published.is_(True))
+        .order_by(Lesson.sequence_order)
+        .all()
+    )
+    if not lessons:
+        raise HTTPException(status_code=404, detail="Course not found")
+    first = lessons[0]
+    return CourseSummary(
+        id=course_id,
+        title=f"Module {course_id}",
+        description=first.description,
+        difficulty=first.difficulty_level,
+        category=first.category,
+        lessons=len(lessons),
+    )
 
 
 @router.get("/lessons", response_model=list[LessonResponse])
