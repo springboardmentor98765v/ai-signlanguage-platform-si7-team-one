@@ -1,0 +1,70 @@
+services:
+
+  backend:
+    build:
+      context: ./backend_API
+      dockerfile: Dockerfile
+
+    container_name: signlanguage-backend
+    restart: unless-stopped
+
+    ports:
+      - "8000:8000"
+
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+
+  aiml:
+    build:
+      context: ./AIML_CV
+      dockerfile: Dockerfile
+
+    container_name: signlanguage-ai
+    restart: unless-stopped
+
+    depends_on:
+      - backend
+
+    ports:
+      - "8001:8001"
+
+  business:
+    build:
+      context: ./Bussiness_Logic
+      dockerfile: Dockerfile
+
+    container_name: signlanguage-business
+    restart: unless-stopped
+
+    depends_on:
+      - backend
+      - aiml
+
+    ports:
+      - "8002:8002"
+
+    environment:
+      AI_SERVICE_URL: http://aiml:8001/predict
+      USE_MOCK_AI: "false"
+      BACKEND_API_URL: http://backend:8000
+      AI_SERVICE_TIMEOUT_SECONDS: "10.0"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:8000
+        VITE_AI_API_URL: http://localhost:8001
+        VITE_BUSINESS_API_URL: http://localhost:8002
+
+    container_name: signlanguage-frontend
+    restart: unless-stopped
+
+    depends_on:
+      - backend
+      - aiml
+      - business
+
+    ports:
+      - "80:80"

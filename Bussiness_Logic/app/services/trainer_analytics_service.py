@@ -106,6 +106,42 @@ def get_learners_for_trainer(
         return []
 
 
+def remove_learner_from_trainer(
+    trainer_id: UUID,
+    learner_id: UUID,
+    authorization: Optional[str] = None,
+) -> bool:
+    """
+    Remove a learner from a trainer's assignments.
+
+    Calls the Backend API:
+
+        DELETE /trainer/{trainer_id}/learners/{learner_id}
+    """
+
+    url = (
+        f"{BACKEND_API_URL}"
+        f"/trainer/{trainer_id}/learners/{learner_id}"
+    )
+
+    headers = {}
+
+    if authorization:
+        headers["Authorization"] = authorization
+
+    try:
+        response = httpx.delete(
+            url,
+            headers=headers,
+            timeout=AI_SERVICE_TIMEOUT_SECONDS,
+        )
+
+        return response.status_code in (200, 204)
+
+    except Exception:
+        return False
+
+
 # ─────────────────────────────────────────────
 # Sessions
 # ─────────────────────────────────────────────
