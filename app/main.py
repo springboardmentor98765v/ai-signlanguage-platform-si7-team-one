@@ -17,6 +17,12 @@ app = FastAPI(
     description="Backend API for the AI-Powered Sign Language Learning & Assessment Platform.",
     version="1.0.0",
 )
+@app.get("/")
+def root():
+    return {
+        "message": "AI Sign Language Backend API is running",
+        "status": "healthy"
+    }
 
 # ---------------------------------------------------------------------------
 # Rate limiting (Milestone 2 + M3 Day 6 per-user limits live inside routers)
