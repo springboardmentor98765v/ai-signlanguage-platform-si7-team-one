@@ -13,7 +13,7 @@ class UserRegister(BaseModel):
     @field_validator("requested_role")
     @classmethod
     def validate_requested_role(cls, v):
-        allowed = {"learner", "instructor"}  # admin excluded on purpose
+        allowed = {"learner", "instructor","admin","accessibility_trainer"}  
         if v not in allowed:
             raise ValueError(f"requested_role must be one of {allowed}")
         return v
@@ -22,6 +22,7 @@ class UserRegister(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+    role :str
 
 
 class UserResponse(BaseModel):
