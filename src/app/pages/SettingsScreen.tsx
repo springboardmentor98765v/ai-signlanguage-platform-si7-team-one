@@ -12,7 +12,7 @@ export default function SettingsScreen() {
   const [pushN, setPushN] = useState(true);
   const [auto, setAuto] = useState(false);
   const { theme, toggleTheme } = useTheme();
-  const { role } = useAuth();
+  const { role, login, userId } = useAuth();
 
   // ── Profile ──────────────────────────────────────────────────────────
   const [fullName, setFullName] = useState("");
@@ -37,7 +37,8 @@ export default function SettingsScreen() {
     setProfileSaved(false);
     setProfileSaving(true);
     try {
-      await updateProfile({ fullName: fullName, email: email });  // matches the function signature
+      await updateProfile({ fullName: fullName, email: email });
+      login(role, undefined, undefined, fullName);
       setProfileSaved(true);
       setTimeout(() => setProfileSaved(false), 2500);
     } catch (e) {
@@ -137,6 +138,13 @@ export default function SettingsScreen() {
             Edit Photo
           </button>
         </div>
+
+        {userId && (
+          <div className="mb-4 px-3 py-2 bg-muted rounded-xl flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Your ID:</span>
+            <code className="text-xs text-foreground font-mono select-all">{userId}</code>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div>

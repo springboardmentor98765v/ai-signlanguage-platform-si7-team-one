@@ -238,79 +238,87 @@ export async function changePassword({
 // ─────────────────────────────────────────────────────────────
 
 export async function getCourses() {
-  return delay([
-    {
-      id: "1",
-      title: "ASL Fundamentals",
-      difficulty: "Beginner",
-      lessons: 24,
-      desc: "Core signs, alphabet, and basic phrases.",
-      hrs: "6 hrs",
-      pct: 100,
-      cat: "ASL",
-    },
-    {
-      id: "2",
-      title: "ASL Intermediate",
-      difficulty: "Intermediate",
-      lessons: 32,
-      desc: "Emotions, questions, and sentence structure.",
-      hrs: "9 hrs",
-      pct: 68,
-      cat: "ASL",
-    },
-    {
-      id: "3",
-      title: "ASL Advanced Conversation",
-      difficulty: "Advanced",
-      lessons: 28,
-      desc: "Classifiers, complex grammar, and fluent ASL.",
-      hrs: "12 hrs",
-      pct: 0,
-      cat: "ASL",
-    },
-    {
-      id: "4",
-      title: "BSL Basics",
-      difficulty: "Beginner",
-      lessons: 20,
-      desc: "Introduction to British Sign Language.",
-      hrs: "5 hrs",
-      pct: 0,
-      cat: "BSL",
-    },
-    {
-      id: "5",
-      title: "Medical Sign Language",
-      difficulty: "Intermediate",
-      lessons: 18,
-      desc: "Healthcare vocabulary for clinical environments.",
-      hrs: "4 hrs",
-      pct: 12,
-      cat: "Specialized",
-    },
-    {
-      id: "6",
-      title: "Numbers & Math Signs",
-      difficulty: "Beginner",
-      lessons: 10,
-      desc: "Counting, arithmetic, and quantities.",
-      hrs: "2 hrs",
-      pct: 45,
-      cat: "ASL",
-    },
-  ]);
+  if (USE_MOCKS) {
+    return delay([
+      {
+        id: "1",
+        title: "ASL Fundamentals",
+        difficulty: "Beginner",
+        lessons: 24,
+        desc: "Core signs, alphabet, and basic phrases.",
+        hrs: "6 hrs",
+        pct: 100,
+        cat: "ASL",
+      },
+      {
+        id: "2",
+        title: "ASL Intermediate",
+        difficulty: "Intermediate",
+        lessons: 32,
+        desc: "Emotions, questions, and sentence structure.",
+        hrs: "9 hrs",
+        pct: 68,
+        cat: "ASL",
+      },
+      {
+        id: "3",
+        title: "ASL Advanced Conversation",
+        difficulty: "Advanced",
+        lessons: 28,
+        desc: "Classifiers, complex grammar, and fluent ASL.",
+        hrs: "12 hrs",
+        pct: 0,
+        cat: "ASL",
+      },
+      {
+        id: "4",
+        title: "BSL Basics",
+        difficulty: "Beginner",
+        lessons: 20,
+        desc: "Introduction to British Sign Language.",
+        hrs: "5 hrs",
+        pct: 0,
+        cat: "BSL",
+      },
+      {
+        id: "5",
+        title: "Medical Sign Language",
+        difficulty: "Intermediate",
+        lessons: 18,
+        desc: "Healthcare vocabulary for clinical environments.",
+        hrs: "4 hrs",
+        pct: 12,
+        cat: "Specialized",
+      },
+      {
+        id: "6",
+        title: "Numbers & Math Signs",
+        difficulty: "Beginner",
+        lessons: 10,
+        desc: "Counting, arithmetic, and quantities.",
+        hrs: "2 hrs",
+        pct: 45,
+        cat: "ASL",
+      },
+    ]);
+  }
+
+  return request("/courses");
 }
 
 
 export async function getCourseById(id) {
-  return delay({
-    id,
-    title: "Alphabet Basics",
-    difficulty: "Beginner",
-    description:
-      "Learn the alphabet in sign language.",
-  });
+  if (USE_MOCKS) {
+    return delay({
+      id,
+      title: "Alphabet Basics",
+      difficulty: "Beginner",
+      description:
+        "Learn the alphabet in sign language.",
+    });
+  }
+
+  return request(`/courses/${id}`);
 }
 
 
@@ -366,6 +374,29 @@ export async function getLessonById(id) {
   }
 
   return request(`/courses/lessons/${id}`);
+}
+
+
+export async function createLesson(data) {
+  return request("/courses/lessons", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+
+export async function updateLesson(id, data) {
+  return request(`/courses/lessons/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+
+export async function deleteLesson(id) {
+  return request(`/courses/lessons/${id}`, {
+    method: "DELETE",
+  });
 }
 
 
