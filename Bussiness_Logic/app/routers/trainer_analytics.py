@@ -16,6 +16,7 @@ from app.services.trainer_analytics_service import (
     get_learners_for_trainer,
     compute_trainer_dashboard,
     compute_learner_analytics,
+    remove_learner_from_trainer,
 )
 
 
@@ -79,6 +80,38 @@ def get_learner_analytics(
     return compute_learner_analytics(
         learner_id
     )
+
+
+@router.delete(
+    "/{trainer_id}/learners/{learner_id}",
+)
+def remove_learner(
+    trainer_id: UUID,
+    learner_id: UUID,
+    authorization: str | None = Header(
+        default=None
+    ),
+):
+    """
+    Remove a learner from a trainer's assignments.
+    """
+
+    result = remove_learner_from_trainer(
+        trainer_id,
+        learner_id,
+    )
+
+    if not result:
+        raise HTTPException(
+            status_code=404,
+            detail="Learner not found in assignments",
+        )
+
+    return {
+        "message": "Student removed",
+        "trainer_id": str(trainer_id),
+        "learner_id": str(learner_id),
+    }
 
 
 @router.get(

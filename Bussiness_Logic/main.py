@@ -1,20 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
 from app.routers import (
-    practice,
-    assessment,
-    feedback,
-    analytics,
-    recommendation,
-    certificate,
-    progress,
-    gamification,
-    leaderboard,
-    notification,
-    export,
-    certification,
-    trainer_analytics,
+    practice, assessment, feedback, analytics, recommendation,
+    certificate, progress, gamification, leaderboard, notification,
+    export, certification, trainer_analytics,
 )
 
 app = FastAPI(title="Practice Service (dev)")
@@ -22,8 +11,6 @@ app = FastAPI(title="Practice Service (dev)")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost",
-        "http://127.0.0.1",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:5174",
